@@ -1,6 +1,8 @@
 bin/
 obj/
 *.user
-spikes/**/out/
+**/out/
 *.mp4
 *.wav
+*.png
+!**/Assets/**/*.png
