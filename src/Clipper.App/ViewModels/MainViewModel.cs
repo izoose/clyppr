@@ -121,8 +121,13 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void Edit(Clip? clip)
     {
-        if (clip is null) return;
-        ShowToast("Editor is coming in the next step");
+        if (clip is null || !File.Exists(clip.FilePath)) { ShowToast("File not found"); return; }
+        var evm = new EditorViewModel(clip, _settings, _library, exported => Dispatch(() =>
+        {
+            if (string.IsNullOrWhiteSpace(SearchText)) Clips.Insert(0, exported); else Reload();
+            ShowToast($"Exported “{exported.Title}”");
+        }));
+        new EditorWindow(evm) { Owner = Application.Current.MainWindow }.Show();
     }
 
     [RelayCommand]

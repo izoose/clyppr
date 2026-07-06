@@ -155,7 +155,7 @@
                                                     Command="{Binding DataContext.PlayCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"/>
                                             <Button Style="{StaticResource CardButton}" Content="&#xE70F;" FontFamily="Segoe MDL2 Assets" Margin="6,0,0,0"
-                                                    ToolTip="Edit"
+                                                    ToolTip="Edit" AutomationProperties.AutomationId="EditBtn"
                                                     Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"/>
                                             <Button Style="{StaticResource CardButton}" Margin="6,0,0,0" ToolTip="Copy share link"
