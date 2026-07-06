@@ -25,13 +25,15 @@ public readonly record struct AudioFormat(int SampleRate, int Channels, int Bits
 
 /// <summary>
 /// Captures one audio source (process include/exclude, mic, or full system) via WASAPI and
-/// raises <see cref="DataAvailable"/> with continuous PCM in <see cref="Format"/>. Emits
-/// silence when the source is silent so downstream muxing stays time-aligned.
+/// raises <see cref="DataAvailable"/> with continuous PCM in <see cref="Format"/>.
+///
+/// WASAPI COM objects are apartment-bound, so the entire lifecycle (activation → initialize →
+/// capture loop → stop) runs on ONE dedicated MTA thread. Creating the client on the caller's
+/// thread (e.g. WPF's STA UI thread) and using it from another thread throws E_NOINTERFACE.
 /// </summary>
 public sealed class AudioCapture : IDisposable
 {
-    // Fixed pipeline format. Process-loopback clients can't GetMixFormat; real devices are
-    // converted to this via AUTOCONVERTPCM.
+    // Fixed pipeline format. Process-loopback can't GetMixFormat; real devices are converted via AUTOCONVERTPCM.
     public static readonly AudioFormat Format = new(48000, 2, 16);
 
     public event Action<byte[]>? DataAvailable;
@@ -44,6 +46,8 @@ public sealed class AudioCapture : IDisposable
     private IntPtr _pProp, _pParams, _pFormat;
     private Thread? _thread;
     private volatile bool _running;
+    private readonly ManualResetEventSlim _initDone = new(false);
+    private Exception? _initError;
 
     public AudioCapture(CaptureKind kind, uint pid = 0)
     {
@@ -53,11 +57,39 @@ public sealed class AudioCapture : IDisposable
 
     public void Start()
     {
+        _running = true;
+        _thread = new Thread(Run) { IsBackground = true, Name = $"audio-{_kind}" };
+        _thread.SetApartmentState(ApartmentState.MTA);
+        _thread.Start();
+        _initDone.Wait(6000);
+        if (_initError is not null) throw _initError;
+    }
+
+    private void Run()
+    {
+        try
+        {
+            Initialize();
+        }
+        catch (Exception ex)
+        {
+            _initError = ex;
+            _initDone.Set();
+            return;
+        }
+        _initDone.Set();
+
+        CaptureLoop();
+
+        try { _client?.Stop(); } catch { }
+    }
+
+    private void Initialize()
+    {
         _client = _kind is CaptureKind.ProcessInclude or CaptureKind.ProcessExclude
             ? ActivateProcessLoopback()
             : ActivateDefaultEndpoint();
 
-        // Stream flags per source kind.
         uint flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
         if (_kind is CaptureKind.ProcessInclude or CaptureKind.ProcessExclude or CaptureKind.SystemAudio)
             flags |= AUDCLNT_STREAMFLAGS_LOOPBACK;
@@ -89,10 +121,6 @@ public sealed class AudioCapture : IDisposable
         Marshal.Release(pCap);
 
         Marshal.ThrowExceptionForHR(_client.Start());
-
-        _running = true;
-        _thread = new Thread(CaptureLoop) { IsBackground = true, Name = $"audio-{_kind}" };
-        _thread.Start();
     }
 
     private IAudioClient ActivateProcessLoopback()
@@ -160,8 +188,7 @@ public sealed class AudioCapture : IDisposable
     public void Stop()
     {
         _running = false;
-        _thread?.Join(1000);
-        try { _client?.Stop(); } catch { }
+        _thread?.Join(1500);
     }
 
     public void Dispose()

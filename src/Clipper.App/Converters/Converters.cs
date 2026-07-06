@@ -1,0 +1,45 @@
+using System.Globalization;
+using System.Windows;
+using System.Windows.Data;
+
+namespace Clipper.App;
+
+/// <summary>true/false → one of two strings passed as "onText|offText".</summary>
+public sealed class BoolTextConverter : IValueConverter
+{
+    public static readonly BoolTextConverter OnOff = new();
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var parts = (parameter as string ?? "On|Off").Split('|');
+        bool b = value is true;
+        return b ? parts[0] : (parts.Length > 1 ? parts[1] : parts[0]);
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>int count == 0 → Visible, else Collapsed (for empty-state UI).</summary>
+public sealed class CountToVisibilityConverter : IValueConverter
+{
+    public static readonly CountToVisibilityConverter ZeroVisible = new();
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => (value is int i && i == 0) ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>Non-empty string → Visible, else Collapsed.</summary>
+public sealed class NotEmptyToVisibilityConverter : IValueConverter
+{
+    public static readonly NotEmptyToVisibilityConverter Instance = new();
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => !string.IsNullOrEmpty(value as string) ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
