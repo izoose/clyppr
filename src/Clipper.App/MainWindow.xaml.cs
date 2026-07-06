@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -8,6 +9,17 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        // Closing the window hides to tray so the replay buffer keeps running; real exit is via the tray "Quit".
+        if (!App.Current.IsQuitting)
+        {
+            e.Cancel = true;
+            App.Current.HideToTray();
+        }
+        base.OnClosing(e);
     }
 
     // Open the card's context menu on a normal left-click of the "⋯" button.

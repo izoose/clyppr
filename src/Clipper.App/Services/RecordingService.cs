@@ -164,6 +164,13 @@ public sealed class RecordingService : IDisposable
         return 0x43; // default 'C'
     }
 
+    /// <summary>Re-apply settings after the user changes them (hotkey + buffer restart).</summary>
+    public void ApplySettings()
+    {
+        RegisterHotkey();
+        if (BufferRunning) { StopBuffer(); StartBuffer(); }
+    }
+
     public void Dispose()
     {
         _hotkey?.Dispose();

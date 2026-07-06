@@ -23,6 +23,7 @@
                            HorizontalAlignment="Center" Margin="0,14,0,16"/>
                 <Button Style="{StaticResource IconButton}" Content="&#xE8A9;" ToolTip="Library"/>
                 <Button Style="{StaticResource IconButton}" Content="&#xE713;" ToolTip="Settings"
+                        AutomationProperties.AutomationId="SettingsBtn"
                         Command="{Binding OpenSettingsCommand}"/>
             </StackPanel>
         </Border>

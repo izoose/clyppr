@@ -160,7 +160,15 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenSettings() => ShowToast("Settings are coming soon");
+    private void OpenSettings()
+    {
+        var svm = new SettingsViewModel(_settings, _recording, () =>
+        {
+            RefreshState();
+            ShowToast("Settings saved");
+        });
+        new SettingsWindow(svm) { Owner = Application.Current.MainWindow }.ShowDialog();
+    }
 
     [RelayCommand]
     private void Delete(Clip? clip)
