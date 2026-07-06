@@ -159,6 +159,7 @@
                                                     Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"/>
                                             <Button Style="{StaticResource CardButton}" Margin="6,0,0,0" ToolTip="Copy share link"
+                                                    AutomationProperties.AutomationId="ShareBtn"
                                                     Command="{Binding DataContext.ShareCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}">
                                                 <StackPanel Orientation="Horizontal">

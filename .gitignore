@@ -6,3 +6,6 @@ obj/
 *.wav
 *.png
 !**/Assets/**/*.png
+node_modules/
+server/data/
+.env

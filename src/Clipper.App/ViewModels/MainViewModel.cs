@@ -131,14 +131,32 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Share(Clip? clip)
+    private async Task Share(Clip? clip)
     {
         if (clip is null) return;
         if (!string.IsNullOrEmpty(clip.ShareUrl))
         {
             try { Clipboard.SetText(clip.ShareUrl); ShowToast("Link copied"); } catch { }
+            return;
         }
-        else ShowToast("Set up sharing in Settings first");
+        if (string.IsNullOrWhiteSpace(_settings.ShareEndpoint) || string.IsNullOrWhiteSpace(_settings.ShareToken))
+        {
+            ShowToast("Set up sharing in Settings first");
+            return;
+        }
+        if (!File.Exists(clip.FilePath)) { ShowToast("File not found"); return; }
+
+        ShowToast("Uploading…");
+        try
+        {
+            string url = await ShareClient.UploadAsync(
+                _settings.ShareEndpoint!, _settings.ShareToken!, clip.FilePath, clip.Title, clip.Width, clip.Height);
+            clip.ShareUrl = url;
+            _library.Update(clip);
+            try { Clipboard.SetText(url); } catch { }
+            ShowToast("Link copied — " + url);
+        }
+        catch (Exception ex) { ShowToast("Upload failed: " + ex.Message); }
     }
 
     [RelayCommand]
