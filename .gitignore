@@ -1,0 +1,6 @@
+bin/
+obj/
+*.user
+spikes/**/out/
+*.mp4
+*.wav
