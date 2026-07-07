@@ -119,6 +119,13 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Grid>
+                                <Button Style="{StaticResource BarButton}" Command="{Binding OpenMontageCommand}" ToolTip="Stitch clips into one video"
+                                        AutomationProperties.AutomationId="MontageBtn">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE8B9;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,7,0"/>
+                                        <TextBlock Text="Montage"/>
+                                    </StackPanel>
+                                </Button>
                                 <Button Style="{StaticResource BarButton}" Command="{Binding ImportCommand}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,7,0"/>

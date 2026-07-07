@@ -281,6 +281,18 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenMontage()
+    {
+        var mvm = new MontageViewModel(_settings, _library, exported => Dispatch(() =>
+        {
+            if (string.IsNullOrWhiteSpace(SearchText) && SelectedAlbumId is null && !FavoritesOnly) Clips.Insert(0, exported);
+            else Reload();
+            ShowToast($"Exported “{exported.Title}”");
+        }));
+        new MontageWindow(mvm) { Owner = Application.Current.MainWindow }.Show();
+    }
+
+    [RelayCommand]
     private void OpenSettings()
     {
         CurrentSettings = new SettingsViewModel(_settings, _recording, () =>
