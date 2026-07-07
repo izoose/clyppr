@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Clipper.Core;
 
 namespace Clipper.App;
@@ -87,5 +89,44 @@ public partial class MainWindow : Window
         var mi = new MenuItem { Header = header };
         mi.Click += (_, _) => action();
         menu.Items.Add(mi);
+    }
+
+    // ---- hover-to-preview ----
+
+    private static readonly string[] VideoExts = { ".mp4", ".mkv", ".mov", ".webm", ".avi" };
+
+    private void Card_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.DataContext is not Clip clip) return;
+        if (!VideoExts.Contains(Path.GetExtension(clip.FilePath).ToLowerInvariant())) return;
+        var preview = FindChild<MediaElement>(fe);
+        if (preview is null || !File.Exists(clip.FilePath)) return;
+        preview.Source = new Uri(clip.FilePath);
+        preview.Visibility = Visibility.Visible;
+        preview.Position = TimeSpan.Zero;
+        preview.Play();
+    }
+
+    private void Card_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is not FrameworkElement fe) return;
+        var preview = FindChild<MediaElement>(fe);
+        if (preview is null) return;
+        preview.Stop();
+        preview.Visibility = Visibility.Collapsed;
+        preview.Source = null;
+    }
+
+    private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        int count = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T t) return t;
+            var found = FindChild<T>(child);
+            if (found is not null) return found;
+        }
+        return null;
     }
 }
