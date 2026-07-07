@@ -25,7 +25,7 @@ public sealed class TrayManager : IDisposable
 
         _icon = new NotifyIcon
         {
-            Icon = MakeIcon(),
+            Icon = LoadIcon(),
             Text = "Clipper",
             Visible = true,
             ContextMenuStrip = menu,
@@ -46,18 +46,15 @@ public sealed class TrayManager : IDisposable
         _icon.ShowBalloonTip(3000);
     }
 
-    private static Icon MakeIcon()
+    private static Icon LoadIcon()
     {
-        using var bmp = new Bitmap(32, 32);
-        using (var g = Graphics.FromImage(bmp))
+        try
         {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Color.Transparent);
-            using var brush = new SolidBrush(Color.FromArgb(0xF0, 0xC2, 0x4B));
-            g.FillPolygon(brush, new[] { new Point(16, 2), new Point(30, 16), new Point(16, 30), new Point(2, 16) });
+            var info = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/clipper.ico"));
+            if (info?.Stream is { } s) return new Icon(s);
         }
-        IntPtr h = bmp.GetHicon();
-        return (Icon)Icon.FromHandle(h).Clone();
+        catch { }
+        return SystemIcons.Application;
     }
 
     public void Dispose()

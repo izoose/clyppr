@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Clipper.App"
         Title="Edit clip" Height="700" Width="1040" MinHeight="520" MinWidth="820"
+        Icon="pack://application:,,,/Assets/clipper.png"
         Background="{StaticResource Bg}" WindowStartupLocation="CenterScreen" UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale">
     <Grid>
