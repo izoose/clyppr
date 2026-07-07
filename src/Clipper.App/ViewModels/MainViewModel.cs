@@ -22,6 +22,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _manualRecording;
     [ObservableProperty] private string _statusText = "Idle";
     [ObservableProperty] private string _toast = "";
+    [ObservableProperty] private bool _showSettings;
+    [ObservableProperty] private SettingsViewModel? _currentSettings;
 
     public RecordingService Recording => _recording;
 
@@ -162,13 +164,17 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenSettings()
     {
-        var svm = new SettingsViewModel(_settings, _recording, () =>
+        CurrentSettings = new SettingsViewModel(_settings, _recording, () =>
         {
             RefreshState();
+            ShowSettings = false;
             ShowToast("Settings saved");
         });
-        new SettingsWindow(svm) { Owner = Application.Current.MainWindow }.ShowDialog();
+        ShowSettings = true;
     }
+
+    [RelayCommand]
+    private void ShowLibrary() => ShowSettings = false;
 
     [RelayCommand]
     private void Delete(Clip? clip)

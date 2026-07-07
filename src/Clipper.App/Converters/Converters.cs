@@ -32,6 +32,32 @@ public sealed class CountToVisibilityConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>Returns "active" (for the NavButton Tag) when the bool matches the target, else null.</summary>
+public sealed class ActiveTagConverter : IValueConverter
+{
+    public static readonly ActiveTagConverter WhenTrue = new() { _target = true };
+    public static readonly ActiveTagConverter WhenFalse = new() { _target = false };
+    private bool _target;
+    public object? Convert(object? value, Type t, object? p, CultureInfo c) => (value is true) == _target ? "active" : null;
+    public object ConvertBack(object? value, Type t, object? p, CultureInfo c) => throw new NotSupportedException();
+}
+
+/// <summary>bool true → Visible, false → Collapsed.</summary>
+public sealed class BoolToVisibilityConverter : IValueConverter
+{
+    public static readonly BoolToVisibilityConverter Instance = new();
+    public object Convert(object? value, Type t, object? p, CultureInfo c) => value is true ? Visibility.Visible : Visibility.Collapsed;
+    public object ConvertBack(object? value, Type t, object? p, CultureInfo c) => value is Visibility.Visible;
+}
+
+/// <summary>bool true → Collapsed, false → Visible.</summary>
+public sealed class InverseBoolToVisibilityConverter : IValueConverter
+{
+    public static readonly InverseBoolToVisibilityConverter Instance = new();
+    public object Convert(object? value, Type t, object? p, CultureInfo c) => value is true ? Visibility.Collapsed : Visibility.Visible;
+    public object ConvertBack(object? value, Type t, object? p, CultureInfo c) => value is not Visibility.Visible;
+}
+
 /// <summary>Inverts a bool (for IsEnabled = !Exporting etc.).</summary>
 public sealed class InverseBoolConverter : IValueConverter
 {
