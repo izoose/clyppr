@@ -25,6 +25,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _shareToken;
     [ObservableProperty] private bool _runOnStartup;
     [ObservableProperty] private string _status = "";
+    [ObservableProperty] private string _section = "Recording";
 
     public SettingsViewModel(AppSettings settings, RecordingService recording, Action onSaved)
     {
@@ -45,6 +46,9 @@ public partial class SettingsViewModel : ObservableObject
         _shareToken = settings.ShareToken ?? "";
         _runOnStartup = StartupManager.IsEnabled();
     }
+
+    [RelayCommand]
+    private void SelectSection(string section) => Section = section;
 
     [RelayCommand]
     private void BrowseClipsDir()

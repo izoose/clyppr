@@ -32,6 +32,22 @@ public sealed class CountToVisibilityConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>Returns "active" when the bound value equals the ConverterParameter (string compare).</summary>
+public sealed class SectionActiveConverter : IValueConverter
+{
+    public static readonly SectionActiveConverter Instance = new();
+    public object? Convert(object? value, Type t, object? p, CultureInfo c) => Equals(value?.ToString(), p?.ToString()) ? "active" : null;
+    public object ConvertBack(object? value, Type t, object? p, CultureInfo c) => throw new NotSupportedException();
+}
+
+/// <summary>value == parameter → Visible, else Collapsed.</summary>
+public sealed class SectionVisibleConverter : IValueConverter
+{
+    public static readonly SectionVisibleConverter Instance = new();
+    public object Convert(object? value, Type t, object? p, CultureInfo c) => Equals(value?.ToString(), p?.ToString()) ? Visibility.Visible : Visibility.Collapsed;
+    public object ConvertBack(object? value, Type t, object? p, CultureInfo c) => throw new NotSupportedException();
+}
+
 /// <summary>Returns "active" (for the NavButton Tag) when the bool matches the target, else null.</summary>
 public sealed class ActiveTagConverter : IValueConverter
 {

@@ -153,11 +153,21 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Width="300" Margin="0,0,14,14" Background="{StaticResource Card}" CornerRadius="12"
-                                                BorderBrush="{StaticResource Border}" BorderThickness="1">
+                                        <Border Width="340" Margin="0,0,16,16" Background="{StaticResource Card}" CornerRadius="12" BorderThickness="1">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="BorderBrush" Value="#3A3A44"/>
+                                                            <Setter Property="Background" Value="{StaticResource CardHover}"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
                                             <StackPanel>
-                                                <Grid Height="169">
-                                                    <Border CornerRadius="12,12,0,0" ClipToBounds="True">
+                                                <Grid Height="191">
+                                                    <Border CornerRadius="11,11,0,0" ClipToBounds="True">
                                                         <Grid>
                                                             <Rectangle Fill="#08080A"/>
                                                             <Image Source="{Binding ThumbnailPath, Converter={StaticResource Thumb}}" Stretch="UniformToFill"/>
@@ -201,7 +211,7 @@
                                                             </StackPanel>
                                                         </Button>
                                                         <Button Style="{StaticResource CardButton}" Content="&#xE712;" FontFamily="Segoe MDL2 Assets" Margin="6,0,0,0" ToolTip="More"
-                                                                Click="MoreButton_Click"/>
+                                                                AutomationProperties.AutomationId="MoreBtn" Click="MoreButton_Click"/>
                                                     </StackPanel>
                                                 </StackPanel>
                                             </StackPanel>

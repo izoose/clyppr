@@ -38,6 +38,7 @@ public sealed class ClipLibrary
                 ThumbnailPath TEXT,
                 ShareUrl      TEXT,
                 AlbumId       INTEGER,
+                IsFavorite    INTEGER NOT NULL DEFAULT 0,
                 Tracks        TEXT NOT NULL DEFAULT '',
                 Tags          TEXT NOT NULL DEFAULT ''
             );
@@ -49,14 +50,27 @@ public sealed class ClipLibrary
             """;
         cmd.ExecuteNonQuery();
 
-        // Migrate older DBs that predate the AlbumId column.
-        try
+        // Migrate older DBs that predate newer columns.
+        foreach (var col in new[] { "AlbumId INTEGER", "IsFavorite INTEGER NOT NULL DEFAULT 0" })
         {
-            using var alter = c.CreateCommand();
-            alter.CommandText = "ALTER TABLE clips ADD COLUMN AlbumId INTEGER;";
-            alter.ExecuteNonQuery();
+            try
+            {
+                using var alter = c.CreateCommand();
+                alter.CommandText = $"ALTER TABLE clips ADD COLUMN {col};";
+                alter.ExecuteNonQuery();
+            }
+            catch { /* column already exists */ }
         }
-        catch { /* column already exists */ }
+    }
+
+    public void SetFavorite(long clipId, bool favorite)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE clips SET IsFavorite=$f WHERE Id=$id;";
+        cmd.Parameters.AddWithValue("$f", favorite ? 1 : 0);
+        cmd.Parameters.AddWithValue("$id", clipId);
+        cmd.ExecuteNonQuery();
     }
 
     // ---- albums ----
@@ -118,8 +132,8 @@ public sealed class ClipLibrary
         using var c = Open();
         using var cmd = c.CreateCommand();
         cmd.CommandText = """
-            INSERT INTO clips (FilePath,Title,Game,CreatedAt,DurationMs,SizeBytes,Width,Height,ThumbnailPath,ShareUrl,AlbumId,Tracks,Tags)
-            VALUES ($f,$t,$g,$c,$d,$s,$w,$h,$th,$u,$al,$tr,$tg);
+            INSERT INTO clips (FilePath,Title,Game,CreatedAt,DurationMs,SizeBytes,Width,Height,ThumbnailPath,ShareUrl,AlbumId,IsFavorite,Tracks,Tags)
+            VALUES ($f,$t,$g,$c,$d,$s,$w,$h,$th,$u,$al,$fav,$tr,$tg);
             SELECT last_insert_rowid();
             """;
         Bind(cmd, clip);
@@ -157,7 +171,7 @@ public sealed class ClipLibrary
         using var cmd = c.CreateCommand();
         cmd.CommandText = """
             UPDATE clips SET FilePath=$f,Title=$t,Game=$g,CreatedAt=$c,DurationMs=$d,SizeBytes=$s,
-                Width=$w,Height=$h,ThumbnailPath=$th,ShareUrl=$u,AlbumId=$al,Tracks=$tr,Tags=$tg WHERE Id=$id;
+                Width=$w,Height=$h,ThumbnailPath=$th,ShareUrl=$u,AlbumId=$al,IsFavorite=$fav,Tracks=$tr,Tags=$tg WHERE Id=$id;
             """;
         Bind(cmd, clip);
         cmd.Parameters.AddWithValue("$id", clip.Id);
@@ -186,6 +200,7 @@ public sealed class ClipLibrary
         cmd.Parameters.AddWithValue("$th", (object?)clip.ThumbnailPath ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$u", (object?)clip.ShareUrl ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$al", (object?)clip.AlbumId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$fav", clip.IsFavorite ? 1 : 0);
         cmd.Parameters.AddWithValue("$tr", clip.Tracks);
         cmd.Parameters.AddWithValue("$tg", clip.Tags);
     }
@@ -210,6 +225,7 @@ public sealed class ClipLibrary
                 ThumbnailPath = r["ThumbnailPath"] as string,
                 ShareUrl = r["ShareUrl"] as string,
                 AlbumId = r["AlbumId"] is long al ? al : null,
+                IsFavorite = r["IsFavorite"] is long fav && fav != 0,
                 Tracks = r.GetString(r.GetOrdinal("Tracks")),
                 Tags = r.GetString(r.GetOrdinal("Tags")),
             });
