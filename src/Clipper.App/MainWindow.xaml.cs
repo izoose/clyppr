@@ -35,15 +35,37 @@ public partial class MainWindow : Window
         base.OnClosing(e);
     }
 
-    // Builds the clip "⋯" menu dynamically so the album list is current.
     private void MoreButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button btn || DataContext is not MainViewModel vm || btn.DataContext is not Clip clip) return;
+        if (sender is FrameworkElement { DataContext: Clip clip } fe && DataContext is MainViewModel vm)
+            BuildClipMenu(clip, vm, fe).IsOpen = true;
+    }
+
+    private void Card_RightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: Clip clip } fe && DataContext is MainViewModel vm)
+        {
+            BuildClipMenu(clip, vm, fe).IsOpen = true;
+            e.Handled = true;
+        }
+    }
+
+    // A rich Medal-style right-click menu, shared by the card and the ⋯ button.
+    private static ContextMenu BuildClipMenu(Clip clip, MainViewModel vm, UIElement target)
+    {
         vm.ContextClip = clip;
+        var menu = new ContextMenu { PlacementTarget = target };
 
-        var menu = new ContextMenu { PlacementTarget = btn };
+        AddItem(menu, "Copy Link", () => vm.ShareCommand.Execute(clip));
+        AddItem(menu, "Open in Editor", () => vm.EditCommand.Execute(clip));
+        AddItem(menu, "Play", () => vm.PlayCommand.Execute(clip));
+        menu.Items.Add(new Separator());
 
-        var addTo = new MenuItem { Header = "Add to album" };
+        var fav = new MenuItem { Header = clip.IsFavorite ? "Unfavorite" : "Favorite", IsChecked = clip.IsFavorite };
+        fav.Click += (_, _) => vm.ToggleFavoriteCommand.Execute(clip);
+        menu.Items.Add(fav);
+
+        var addTo = new MenuItem { Header = "Albums" };
         foreach (var album in vm.Albums)
         {
             var a = album;
@@ -55,24 +77,22 @@ public partial class MainWindow : Window
         var newAlbum = new MenuItem { Header = "New album…" };
         newAlbum.Click += (_, _) => vm.AddToNewAlbumCommand.Execute(null);
         addTo.Items.Add(newAlbum);
-        menu.Items.Add(addTo);
-
         if (clip.AlbumId is not null)
         {
-            var remove = new MenuItem { Header = "Remove from album" };
-            remove.Click += (_, _) => vm.RemoveFromAlbumCommand.Execute(null);
-            menu.Items.Add(remove);
+            var rem = new MenuItem { Header = "Remove from album" };
+            rem.Click += (_, _) => vm.RemoveFromAlbumCommand.Execute(null);
+            addTo.Items.Add(rem);
         }
+        menu.Items.Add(addTo);
+
+        AddItem(menu, "Hashtags…", () => vm.EditTagsCommand.Execute(clip));
         menu.Items.Add(new Separator());
 
-        AddItem(menu, "Play", () => vm.PlayCommand.Execute(clip));
-        AddItem(menu, "Edit", () => vm.EditCommand.Execute(clip));
         AddItem(menu, "Open file location", () => vm.OpenFolderCommand.Execute(clip));
         AddItem(menu, "Copy file path", () => vm.CopyPathCommand.Execute(clip));
         menu.Items.Add(new Separator());
         AddItem(menu, "Delete", () => vm.DeleteCommand.Execute(clip));
-
-        menu.IsOpen = true;
+        return menu;
     }
 
     private void AlbumChip_RightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -91,11 +111,11 @@ public partial class MainWindow : Window
         menu.Items.Add(mi);
     }
 
-    // Clicking a clip's thumbnail opens it in the editor.
+    // Clicking a clip's thumbnail opens it in the Medal-style viewer.
     private void Thumb_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: Clip clip } && DataContext is MainViewModel vm)
-            vm.EditCommand.Execute(clip);
+            vm.OpenViewerCommand.Execute(clip);
     }
 
     // ---- hover-to-preview ----

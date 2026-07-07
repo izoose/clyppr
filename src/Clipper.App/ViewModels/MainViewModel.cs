@@ -251,6 +251,19 @@ public partial class MainViewModel : ObservableObject
         try { Clipboard.SetText(clip.FilePath); ShowToast("Path copied"); } catch { }
     }
 
+    /// <summary>Re-query the library so card visuals reflect external changes (favorite/title/etc.).</summary>
+    public void RefreshCards() => Reload();
+
+    [RelayCommand]
+    private void OpenViewer(Clip? clip)
+    {
+        if (clip is null) return;
+        int idx = Clips.IndexOf(clip);
+        if (idx < 0) return;
+        var vvm = new ClipViewerViewModel(this, _library, idx);
+        new ClipViewerWindow(vvm) { Owner = Application.Current.MainWindow }.Show();
+    }
+
     [RelayCommand]
     private void Edit(Clip? clip)
     {
@@ -305,6 +318,17 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void EditTags(Clip? clip)
+    {
+        if (clip is null) return;
+        string? tags = InputDialog.Ask(Application.Current.MainWindow, "Hashtags (comma-separated)", clip.Tags);
+        if (tags is null) return;
+        clip.Tags = tags;
+        _library.Update(clip);
+        ShowToast("Hashtags updated");
+    }
+
+    [RelayCommand]
     private void OpenSettings()
     {
         CurrentSettings = new SettingsViewModel(_settings, _recording, () =>
@@ -317,7 +341,12 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ShowLibrary() => ShowSettings = false;
+    private void ShowLibrary()
+    {
+        ShowSettings = false;
+        FavoritesOnly = false;
+        SelectAll();   // clear album/favorites filters and show everything
+    }
 
     [RelayCommand]
     private void Delete(Clip? clip)

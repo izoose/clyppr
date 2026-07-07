@@ -111,9 +111,11 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <TextBlock Text="{Binding ClipCount, StringFormat='{}{0} Clips'}" Foreground="{StaticResource TextDim}" FontSize="12" VerticalAlignment="Center" Margin="0,0,14,0"/>
                         <Border Width="1" Background="{StaticResource Border}" Margin="0,10,14,10"/>
-                        <Grid Width="230">
-                            <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}"/>
-                            <TextBlock Text="Search" Foreground="{StaticResource TextFaint}" IsHitTestVisible="False" Margin="12,0,0,0" VerticalAlignment="Center" FontSize="13">
+                        <Grid Width="340" Height="32">
+                            <TextBox x:Name="SearchBox" Style="{StaticResource SearchBox}" VerticalContentAlignment="Center" Padding="31,6,10,6"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}"/>
+                            <TextBlock Text="&#xE721;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource TextFaint}" IsHitTestVisible="False" Margin="11,0,0,0" VerticalAlignment="Center" FontSize="13"/>
+                            <TextBlock Text="Search clips" Foreground="{StaticResource TextFaint}" IsHitTestVisible="False" Margin="32,0,0,0" VerticalAlignment="Center" FontSize="13">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Visibility" Value="Collapsed"/>
@@ -203,7 +205,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border Width="262" Margin="0,0,10,10" Background="{StaticResource Card}" CornerRadius="7" BorderThickness="1"
-                                                MouseEnter="Card_MouseEnter" MouseLeave="Card_MouseLeave">
+                                                MouseEnter="Card_MouseEnter" MouseLeave="Card_MouseLeave" MouseRightButtonUp="Card_RightClick">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="BorderBrush" Value="Transparent"/>
