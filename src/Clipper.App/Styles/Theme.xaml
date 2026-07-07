@@ -321,6 +321,34 @@
         </Setter>
     </Style>
 
+    <!-- Hotkey key badge (ALT / C) -->
+    <Style x:Key="KeyBadge" TargetType="Border">
+        <Setter Property="Background" Value="#2A2A34"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="7,2"/>
+        <Setter Property="Margin" Value="0,0,4,0"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Title-bar capture control (Clip / Long Recording) -->
+    <Style x:Key="CaptureBtn" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Padding" Value="10,5"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="{StaticResource CardHover}"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Album filter pill -->
     <Style x:Key="Pill" TargetType="Button">
         <Setter Property="Foreground" Value="{StaticResource TextDim}"/>

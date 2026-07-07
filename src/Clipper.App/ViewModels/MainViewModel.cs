@@ -31,6 +31,11 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private long? _selectedAlbumId;
     [ObservableProperty] private bool _allSelected = true;
     [ObservableProperty] private bool _favoritesOnly;
+    [ObservableProperty] private string _nowGame = "Ready";
+    [ObservableProperty] private int _clipMinutes = 1;
+
+    public int ClipCount => Clips.Count;
+    public string HotkeyKeyDisplay => _settings.HotkeyKey;
 
     public RecordingService Recording => _recording;
 
@@ -43,6 +48,13 @@ public partial class MainViewModel : ObservableObject
         _recording.StateChanged += () => Dispatch(RefreshState);
         _recording.ClipSaved += clip => Dispatch(() => { InsertClip(clip); ShowToast($"Clipped “{clip.Title}”"); });
         _recording.Error += msg => Dispatch(() => ShowToast(msg));
+
+        ClipMinutes = Math.Max(1, settings.ClipLengthSeconds / 60);
+        Clips.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ClipCount));
+
+        var gameTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        gameTimer.Tick += (_, _) => NowGame = AppDetector.ForegroundGame() ?? "Ready";
+        gameTimer.Start();
 
         LoadAlbums();
         Reload();
