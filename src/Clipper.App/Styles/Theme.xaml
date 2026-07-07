@@ -265,6 +265,60 @@
         <Setter Property="Margin" Value="0,0,5,0"/>
     </Style>
 
+    <!-- Dark ComboBox -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        <Setter Property="Padding" Value="10,7"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="b" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="b" Property="Background" Value="{StaticResource CardHover}"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ComboBox">
+        <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        <Setter Property="Height" Value="34"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <ToggleButton Focusable="False" ClickMode="Press"
+                                      IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Background="#1B1B20" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="7">
+                                        <Grid>
+                                            <ContentPresenter Margin="10,0,28,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                              Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"/>
+                                            <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="10" HorizontalAlignment="Right"
+                                                       Margin="0,0,10,0" VerticalAlignment="Center" Foreground="{StaticResource TextDim}"/>
+                                        </Grid>
+                                    </Border>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                            <Border Background="{StaticResource MenuBg}" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="7" Padding="4" Margin="0,4,0,0"
+                                    MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ComboBox}}">
+                                <Border.Effect><DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.5" Color="#000000"/></Border.Effect>
+                                <ScrollViewer MaxHeight="240"><ItemsPresenter/></ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Album filter pill -->
     <Style x:Key="Pill" TargetType="Button">
         <Setter Property="Foreground" Value="{StaticResource TextDim}"/>

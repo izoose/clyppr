@@ -41,6 +41,10 @@ public sealed class RecordingService : IDisposable
         Fps = _settings.Fps,
         Cq = _settings.Cq,
         Tracks = RecorderConfig.DefaultTracks(_settings.VoiceApp),
+        FacecamEnabled = _settings.FacecamEnabled,
+        FacecamDevice = _settings.FacecamDevice,
+        FacecamWidth = _settings.FacecamWidth,
+        FacecamCorner = _settings.FacecamCorner,
     };
 
     // ---- replay buffer ----

@@ -107,7 +107,24 @@ sealed class CaptureSession : IDisposable
         sb.Append($"-f rawvideo -pixel_format bgra -video_size {w}x{h} -framerate {_cfg.Fps} -i \\\\.\\pipe\\{vPipeName} ");
         for (int i = 0; i < _audio.Count; i++)
             sb.Append($"-f s16le -ar {AudioCapture.Format.SampleRate} -ac {AudioCapture.Format.Channels} -i \\\\.\\pipe\\clipper_a{i}_{id} ");
-        sb.Append("-map 0:v ");
+
+        bool facecam = _cfg.FacecamEnabled && !string.IsNullOrWhiteSpace(_cfg.FacecamDevice);
+        if (facecam)
+            sb.Append($"-f dshow -rtbufsize 128M -i video=\"{_cfg.FacecamDevice}\" ");
+
+        if (facecam)
+        {
+            int cam = _audio.Count + 1;
+            string pos = _cfg.FacecamCorner switch
+            {
+                "BottomLeft" => "20:H-h-20",
+                "TopRight" => "W-w-20:20",
+                "TopLeft" => "20:20",
+                _ => "W-w-20:H-h-20",
+            };
+            sb.Append($"-filter_complex \"[{cam}:v]scale={_cfg.FacecamWidth}:-1,setsar=1[cam];[0:v][cam]overlay={pos}[vout]\" -map \"[vout]\" ");
+        }
+        else sb.Append("-map 0:v ");
         for (int i = 0; i < _audio.Count; i++) sb.Append($"-map {i + 1}:a ");
         sb.Append($"-c:v h264_nvenc -preset {_cfg.NvencPreset} -rc vbr -cq {_cfg.Cq} -pix_fmt yuv420p -g {_cfg.Fps} ");
         if (!string.IsNullOrWhiteSpace(extraEncoderArgs)) sb.Append(extraEncoderArgs).Append(' ');

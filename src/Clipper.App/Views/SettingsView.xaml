@@ -66,6 +66,8 @@
                         Tag="{Binding Section, Converter={x:Static local:SectionActiveConverter.Instance}, ConverterParameter=Hotkeys}"/>
                 <Button Style="{StaticResource SettingsNav}" Content="Storage" Command="{Binding SelectSectionCommand}" CommandParameter="Storage"
                         Tag="{Binding Section, Converter={x:Static local:SectionActiveConverter.Instance}, ConverterParameter=Storage}"/>
+                <Button Style="{StaticResource SettingsNav}" Content="Facecam" Command="{Binding SelectSectionCommand}" CommandParameter="Facecam"
+                        Tag="{Binding Section, Converter={x:Static local:SectionActiveConverter.Instance}, ConverterParameter=Facecam}"/>
                 <Button Style="{StaticResource SettingsNav}" Content="Sharing" Command="{Binding SelectSectionCommand}" CommandParameter="Sharing"
                         Tag="{Binding Section, Converter={x:Static local:SectionActiveConverter.Instance}, ConverterParameter=Sharing}"/>
                 <Button Style="{StaticResource SettingsNav}" Content="Startup" Command="{Binding SelectSectionCommand}" CommandParameter="Startup"
@@ -129,6 +131,21 @@
                             <Button Grid.Column="1" Style="{StaticResource CardButton}" Content="Browse…" Margin="8,0,0,0" Command="{Binding BrowseClipsDirCommand}"/>
                         </Grid>
                         <CheckBox Content="Start the replay buffer when the app opens" IsChecked="{Binding BufferEnabledOnStart}" Foreground="{StaticResource Text}" Margin="0,16,0,0"/>
+                    </StackPanel>
+
+                    <!-- Facecam -->
+                    <StackPanel Visibility="{Binding Section, Converter={x:Static local:SectionVisibleConverter.Instance}, ConverterParameter=Facecam}">
+                        <TextBlock Text="Facecam" Style="{StaticResource PanelTitle}"/>
+                        <TextBlock Text="Overlay your webcam onto recordings and clips." Style="{StaticResource PanelDesc}"/>
+                        <CheckBox Content="Enable facecam overlay" IsChecked="{Binding FacecamEnabled}" Foreground="{StaticResource Text}"/>
+                        <TextBlock Text="Camera" Style="{StaticResource Label}" Margin="0,14,0,4"/>
+                        <ComboBox ItemsSource="{Binding Cameras}" SelectedItem="{Binding FacecamDevice}"/>
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="14"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0"><TextBlock Text="Width (px)" Style="{StaticResource Label}"/><TextBox Style="{StaticResource SearchBox}" Text="{Binding FacecamWidth}"/></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Corner" Style="{StaticResource Label}"/><ComboBox ItemsSource="{Binding Corners}" SelectedItem="{Binding FacecamCorner}"/></StackPanel>
+                        </Grid>
+                        <TextBlock Text="If no cameras appear, plug one in and reopen Settings." Foreground="{StaticResource TextFaint}" FontSize="11" Margin="0,10,0,0"/>
                     </StackPanel>
 
                     <!-- Sharing -->

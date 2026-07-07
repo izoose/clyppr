@@ -19,6 +19,12 @@ public sealed class RecorderConfig
     /// <summary>NVENC constant-quality level (lower = better/bigger). ~19-23 is a good range.</summary>
     public int Cq { get; init; } = 21;
 
+    // Facecam overlay (DirectShow webcam composited at record time).
+    public bool FacecamEnabled { get; init; }
+    public string? FacecamDevice { get; init; }
+    public int FacecamWidth { get; init; } = 320;
+    public string FacecamCorner { get; init; } = "BottomRight";
+
     /// <summary>Default track layout: desktop-minus-voice, voice-only, mic.</summary>
     public static List<AudioTrackConfig> DefaultTracks(string voiceApp = "Discord") => new()
     {

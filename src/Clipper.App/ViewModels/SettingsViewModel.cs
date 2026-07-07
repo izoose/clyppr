@@ -1,4 +1,6 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Windows;
 using Clipper.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -28,6 +30,13 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _runOnStartup;
     [ObservableProperty] private string _status = "";
     [ObservableProperty] private string _section = "Recording";
+    [ObservableProperty] private bool _facecamEnabled;
+    [ObservableProperty] private string? _facecamDevice;
+    [ObservableProperty] private int _facecamWidth;
+    [ObservableProperty] private string _facecamCorner;
+
+    public ObservableCollection<string> Cameras { get; } = new();
+    public string[] Corners { get; } = { "BottomRight", "BottomLeft", "TopRight", "TopLeft" };
 
     public SettingsViewModel(AppSettings settings, RecordingService recording, Action onSaved)
     {
@@ -49,6 +58,17 @@ public partial class SettingsViewModel : ObservableObject
         _shareEndpoint = settings.ShareEndpoint ?? "";
         _shareToken = settings.ShareToken ?? "";
         _runOnStartup = StartupManager.IsEnabled();
+        _facecamEnabled = settings.FacecamEnabled;
+        _facecamDevice = settings.FacecamDevice;
+        _facecamWidth = settings.FacecamWidth;
+        _facecamCorner = settings.FacecamCorner;
+
+        // Enumerate webcams off the UI thread.
+        Task.Run(() =>
+        {
+            var cams = CameraDevices.List();
+            Application.Current?.Dispatcher.Invoke(() => { foreach (var c in cams) Cameras.Add(c); });
+        });
     }
 
     [RelayCommand]
@@ -77,6 +97,10 @@ public partial class SettingsViewModel : ObservableObject
         _settings.BufferEnabledOnStart = BufferEnabledOnStart;
         _settings.ShareEndpoint = string.IsNullOrWhiteSpace(ShareEndpoint) ? null : ShareEndpoint.Trim();
         _settings.ShareToken = string.IsNullOrWhiteSpace(ShareToken) ? null : ShareToken.Trim();
+        _settings.FacecamEnabled = FacecamEnabled;
+        _settings.FacecamDevice = FacecamDevice;
+        _settings.FacecamWidth = Math.Clamp(FacecamWidth, 120, 640);
+        _settings.FacecamCorner = FacecamCorner;
         _settings.Save();
 
         StartupManager.Set(RunOnStartup, Process.GetCurrentProcess().MainModule?.FileName ?? "");

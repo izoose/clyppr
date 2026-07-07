@@ -21,6 +21,12 @@ public sealed class AppSettings
     public string ScreenshotKey { get; set; } = "S";
     public bool BufferEnabledOnStart { get; set; } = true;
 
+    // Facecam
+    public bool FacecamEnabled { get; set; }
+    public string? FacecamDevice { get; set; }
+    public int FacecamWidth { get; set; } = 320;
+    public string FacecamCorner { get; set; } = "BottomRight";
+
     // Sharing (M5)
     public string? ShareEndpoint { get; set; }
     public string? ShareToken { get; set; }
