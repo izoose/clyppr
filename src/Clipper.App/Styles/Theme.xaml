@@ -11,8 +11,8 @@
     <SolidColorBrush x:Key="Text" Color="#E8E8EA"/>
     <SolidColorBrush x:Key="TextDim" Color="#93939C"/>
     <SolidColorBrush x:Key="TextFaint" Color="#62626C"/>
-    <SolidColorBrush x:Key="Accent" Color="#E3B44A"/>
-    <SolidColorBrush x:Key="AccentText" Color="#1A1608"/>
+    <SolidColorBrush x:Key="Accent" Color="#FFC93C"/>
+    <SolidColorBrush x:Key="AccentText" Color="#1A1400"/>
     <SolidColorBrush x:Key="Good" Color="#41B37F"/>
     <SolidColorBrush x:Key="Rec" Color="#E5534B"/>
     <SolidColorBrush x:Key="Hover" Color="#20FFFFFF"/>
@@ -74,7 +74,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Grid Margin="6,3">
-                        <Border x:Name="active" Width="3" HorizontalAlignment="Left" CornerRadius="2"
+                        <Border x:Name="active" Width="4" Height="22" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="2"
                                 Background="{StaticResource Accent}" Visibility="Collapsed"/>
                         <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="10">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
