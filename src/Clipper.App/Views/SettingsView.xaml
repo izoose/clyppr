@@ -87,10 +87,8 @@
                     <!-- Recording -->
                     <StackPanel Visibility="{Binding Section, Converter={x:Static local:SectionVisibleConverter.Instance}, ConverterParameter=Recording}">
                         <TextBlock Text="Recording" Style="{StaticResource PanelTitle}"/>
-                        <TextBlock Text="How Clipper captures your gameplay and audio." Style="{StaticResource PanelDesc}"/>
-                        <TextBlock Text="Voice app to separate (process name, no .exe)" Style="{StaticResource Label}"/>
-                        <TextBox Style="{StaticResource SearchBox}" Text="{Binding VoiceApp}"/>
-                        <Grid Margin="0,12,0,0">
+                        <TextBlock Text="How Clipper captures your gameplay and audio. Each app's audio is separated onto its own track automatically." Style="{StaticResource PanelDesc}"/>
+                        <Grid Margin="0,4,0,0">
                             <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="14"/><ColumnDefinition/></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0"><TextBlock Text="FPS" Style="{StaticResource Label}"/><TextBox Style="{StaticResource SearchBox}" Text="{Binding Fps}"/></StackPanel>
                             <StackPanel Grid.Column="2"><TextBlock Text="Quality (CQ, lower = better)" Style="{StaticResource Label}"/><TextBox Style="{StaticResource SearchBox}" Text="{Binding Cq}"/></StackPanel>

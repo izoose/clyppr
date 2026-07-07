@@ -76,13 +76,17 @@ sealed class CaptureSession : IDisposable
             uint pid = 0;
             if (t.Kind is CaptureKind.ProcessInclude or CaptureKind.ProcessExclude)
             {
-                var proc = Process.GetProcessesByName(t.ProcessName).FirstOrDefault();
-                if (proc is null)
+                if (t.Pid is uint givenPid) pid = givenPid;               // exact process id (per-app separation)
+                else
                 {
-                    if (t.Kind == CaptureKind.ProcessInclude) continue;   // no such app → drop track
-                    kind = CaptureKind.SystemAudio;                        // "desktop minus X", no X → all audio
+                    var proc = Process.GetProcessesByName(t.ProcessName).FirstOrDefault();
+                    if (proc is null)
+                    {
+                        if (t.Kind == CaptureKind.ProcessInclude) continue;   // no such app → drop track
+                        kind = CaptureKind.SystemAudio;                        // "desktop minus X", no X → all audio
+                    }
+                    else pid = (uint)proc.Id;
                 }
-                else pid = (uint)proc.Id;
             }
             var cap = new AudioCapture(kind, pid);
             var pipe = NewPipe($"clipper_a{i}_{id}", 4 * 1024 * 1024);

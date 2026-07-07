@@ -7,6 +7,8 @@ public sealed class AudioTrackConfig
     public required CaptureKind Kind { get; init; }
     /// <summary>Process name (no ".exe") for ProcessInclude/ProcessExclude.</summary>
     public string? ProcessName { get; init; }
+    /// <summary>Exact process id to capture (preferred over ProcessName when set).</summary>
+    public uint? Pid { get; init; }
 }
 
 public sealed class RecorderConfig

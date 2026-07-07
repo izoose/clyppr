@@ -20,6 +20,11 @@ public sealed class RecordingService : IDisposable
     private GlobalHotkey? _shotHotkey;
     private string? _manualGame;
 
+    private System.Threading.Timer? _monitor;
+    private HashSet<uint> _capturedPids = new();
+    private DateTime _lastRestart = DateTime.MinValue;
+    private readonly object _sync = new();
+
     /// <summary>Raised (on a background thread) after a clip is saved and added to the library.</summary>
     public event Action<Clip>? ClipSaved;
     /// <summary>Raised when buffer/recording state changes so the UI can refresh.</summary>
@@ -40,53 +45,122 @@ public sealed class RecordingService : IDisposable
         OutputDirectory = _settings.ClipsDirectory,
         Fps = _settings.Fps,
         Cq = _settings.Cq,
-        Tracks = RecorderConfig.DefaultTracks(_settings.VoiceApp),
+        Tracks = BuildTracks(),
         FacecamEnabled = _settings.FacecamEnabled,
         FacecamDevice = _settings.FacecamDevice,
         FacecamWidth = _settings.FacecamWidth,
         FacecamCorner = _settings.FacecamCorner,
     };
 
+    /// <summary>
+    /// Builds one audio track per app currently producing sound (each isolated by process id),
+    /// plus a Mic track — so audio is separated automatically with no configuration. Falls back
+    /// to a single "Desktop" (all system audio) track when nothing is playing yet.
+    /// </summary>
+    private List<AudioTrackConfig> BuildTracks()
+    {
+        uint self = (uint)Environment.ProcessId;
+        var apps = AudioSessions.ActiveApps(self);
+        if (apps.Count > 6) apps = apps.GetRange(0, 6);
+
+        var tracks = new List<AudioTrackConfig>();
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (pid, proc) in apps)
+        {
+            string baseName = AppDetector.Friendly(proc);
+            string name = baseName;
+            int n = 2;
+            while (!used.Add(name)) name = $"{baseName} {n++}";
+            tracks.Add(new AudioTrackConfig { Name = name, Kind = CaptureKind.ProcessInclude, Pid = pid });
+        }
+        if (tracks.Count == 0)
+            tracks.Add(new AudioTrackConfig { Name = "Desktop", Kind = CaptureKind.SystemAudio });
+        tracks.Add(new AudioTrackConfig { Name = "Mic", Kind = CaptureKind.Mic });
+
+        _capturedPids = apps.Select(a => a.Pid).ToHashSet();
+        return tracks;
+    }
+
     // ---- replay buffer ----
 
     public void StartBuffer()
     {
-        if (BufferRunning || ManualRecording) return;
-        try
+        lock (_sync)
         {
-            _buffer = new ReplayBuffer(BuildConfig(), _settings.BufferSeconds);
-            _buffer.Start();
+            if (BufferRunning || ManualRecording) return;
+            try
+            {
+                _buffer = new ReplayBuffer(BuildConfig(), _settings.BufferSeconds);
+                _buffer.Start();
+                _lastRestart = DateTime.Now;
+                _monitor ??= new System.Threading.Timer(_ => MonitorTick(), null, 6000, 4000);
+            }
+            catch (Exception ex) { Error?.Invoke("Couldn't start capture: " + ex.Message); _buffer = null; }
         }
-        catch (Exception ex) { Error?.Invoke("Couldn't start capture: " + ex.Message); _buffer = null; }
         StateChanged?.Invoke();
     }
 
     public void StopBuffer()
     {
-        _buffer?.Stop();
-        _buffer?.Dispose();
-        _buffer = null;
+        lock (_sync)
+        {
+            _monitor?.Dispose();
+            _monitor = null;
+            _buffer?.Stop();
+            _buffer?.Dispose();
+            _buffer = null;
+        }
         StateChanged?.Invoke();
+    }
+
+    // Re-scans active audio apps; if a new one appeared, restart the buffer so it gets its own
+    // track. Throttled and only on NEW apps, so it doesn't thrash (a brief buffer gap on restart).
+    private void MonitorTick()
+    {
+        bool restarted = false;
+        lock (_sync)
+        {
+            if (_buffer is null || !_buffer.IsRunning) return;
+            if ((DateTime.Now - _lastRestart).TotalSeconds < 12) return;
+            var apps = AudioSessions.ActiveApps((uint)Environment.ProcessId);
+            if (!apps.Any(a => !_capturedPids.Contains(a.Pid))) return;
+            try
+            {
+                _buffer.Stop();
+                _buffer.Dispose();
+                _buffer = new ReplayBuffer(BuildConfig(), _settings.BufferSeconds);
+                _buffer.Start();
+                _lastRestart = DateTime.Now;
+                restarted = true;
+            }
+            catch (Exception ex) { Error?.Invoke("Audio re-scan failed: " + ex.Message); }
+        }
+        if (restarted) StateChanged?.Invoke();
     }
 
     /// <summary>Save the last ClipLengthSeconds from the buffer and add it to the library.</summary>
     public Clip? SaveClip()
     {
-        if (_buffer is null || !_buffer.IsRunning) return null;
         Directory.CreateDirectory(_settings.ClipsDirectory);
         string outPath = Path.Combine(_settings.ClipsDirectory, $"clip_{DateTime.Now:yyyyMMdd_HHmmss}.mp4");
         string? game = AppDetector.ForegroundGame();   // detect the game at the moment of clipping
-        try
+
+        string? saved;
+        IReadOnlyList<string> names;
+        lock (_sync)
         {
-            string? saved = _buffer.SaveLast(_settings.ClipLengthSeconds, outPath);
-            if (saved is null) return null;
-            var clip = ClipImporter.Import(saved, _library,
-                title: game is null ? null : $"{game} — {DateTime.Now:MMM d}",
-                tracks: string.Join(",", _buffer.TrackNames), game: game);
-            ClipSaved?.Invoke(clip);
-            return clip;
+            if (_buffer is null || !_buffer.IsRunning) return null;
+            names = _buffer.TrackNames;
+            try { saved = _buffer.SaveLast(_settings.ClipLengthSeconds, outPath); }
+            catch (Exception ex) { Error?.Invoke("Save failed: " + ex.Message); return null; }
         }
-        catch (Exception ex) { Error?.Invoke("Save failed: " + ex.Message); return null; }
+        if (saved is null) return null;
+
+        var clip = ClipImporter.Import(saved, _library,
+            title: game is null ? null : $"{game} — {DateTime.Now:MMM d}",
+            tracks: string.Join(",", names), game: game);
+        ClipSaved?.Invoke(clip);
+        return clip;
     }
 
     // ---- manual recording (Long Recording) ----
@@ -237,6 +311,7 @@ public sealed class RecordingService : IDisposable
 
     public void Dispose()
     {
+        _monitor?.Dispose();
         _hotkey?.Dispose();
         _shotHotkey?.Dispose();
         _buffer?.Dispose();

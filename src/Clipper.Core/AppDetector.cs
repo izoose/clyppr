@@ -28,6 +28,14 @@ public static class AppDetector
         ["FestivalClient-Win64-Shipping"] = "Fortnite Festival",
     };
 
+    /// <summary>A display name for a process (known-game map, else capitalized process name).</summary>
+    public static string Friendly(string processName)
+    {
+        if (string.IsNullOrEmpty(processName)) return "App";
+        if (Known.TryGetValue(processName, out var f)) return f;
+        return char.ToUpperInvariant(processName[0]) + processName[1..];
+    }
+
     /// <summary>A friendly name for the current foreground game/app, or null if it's the shell/us.</summary>
     public static string? ForegroundGame()
     {
