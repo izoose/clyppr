@@ -17,6 +17,7 @@ public sealed class RecordingService : IDisposable
     private ReplayBuffer? _buffer;
     private Recorder? _recorder;
     private GlobalHotkey? _hotkey;
+    private string? _manualGame;
 
     /// <summary>Raised (on a background thread) after a clip is saved and added to the library.</summary>
     public event Action<Clip>? ClipSaved;
@@ -69,11 +70,14 @@ public sealed class RecordingService : IDisposable
         if (_buffer is null || !_buffer.IsRunning) return null;
         Directory.CreateDirectory(_settings.ClipsDirectory);
         string outPath = Path.Combine(_settings.ClipsDirectory, $"clip_{DateTime.Now:yyyyMMdd_HHmmss}.mp4");
+        string? game = AppDetector.ForegroundGame();   // detect the game at the moment of clipping
         try
         {
             string? saved = _buffer.SaveLast(_settings.ClipLengthSeconds, outPath);
             if (saved is null) return null;
-            var clip = ClipImporter.Import(saved, _library, tracks: string.Join(",", _buffer.TrackNames));
+            var clip = ClipImporter.Import(saved, _library,
+                title: game is null ? null : $"{game} — {DateTime.Now:MMM d}",
+                tracks: string.Join(",", _buffer.TrackNames), game: game);
             ClipSaved?.Invoke(clip);
             return clip;
         }
@@ -85,6 +89,7 @@ public sealed class RecordingService : IDisposable
     public void StartManual()
     {
         if (ManualRecording) return;
+        _manualGame = AppDetector.ForegroundGame();   // remember what we're recording
         bool wasBuffer = BufferRunning;
         StopBuffer(); // release exclusive capture
         try
@@ -113,7 +118,9 @@ public sealed class RecordingService : IDisposable
             _recorder = null;
             if (File.Exists(file))
             {
-                clip = ClipImporter.Import(file, _library, tracks: string.Join(",", names));
+                clip = ClipImporter.Import(file, _library,
+                    title: _manualGame is null ? null : $"{_manualGame} — {DateTime.Now:MMM d}",
+                    tracks: string.Join(",", names), game: _manualGame);
                 ClipSaved?.Invoke(clip);
             }
         }
