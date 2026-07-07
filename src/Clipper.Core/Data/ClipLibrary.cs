@@ -37,10 +37,79 @@ public sealed class ClipLibrary
                 Height        INTEGER NOT NULL,
                 ThumbnailPath TEXT,
                 ShareUrl      TEXT,
+                AlbumId       INTEGER,
                 Tracks        TEXT NOT NULL DEFAULT '',
                 Tags          TEXT NOT NULL DEFAULT ''
             );
+            CREATE TABLE IF NOT EXISTS albums (
+                Id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name      TEXT NOT NULL,
+                CreatedAt TEXT NOT NULL
+            );
             """;
+        cmd.ExecuteNonQuery();
+
+        // Migrate older DBs that predate the AlbumId column.
+        try
+        {
+            using var alter = c.CreateCommand();
+            alter.CommandText = "ALTER TABLE clips ADD COLUMN AlbumId INTEGER;";
+            alter.ExecuteNonQuery();
+        }
+        catch { /* column already exists */ }
+    }
+
+    // ---- albums ----
+
+    public List<Album> GetAlbums()
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT Id, Name, CreatedAt FROM albums ORDER BY Name COLLATE NOCASE;";
+        var list = new List<Album>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+            list.Add(new Album { Id = r.GetInt64(0), Name = r.GetString(1), CreatedAt = DateTime.Parse(r.GetString(2), null, System.Globalization.DateTimeStyles.RoundtripKind) });
+        return list;
+    }
+
+    public Album AddAlbum(string name)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "INSERT INTO albums (Name, CreatedAt) VALUES ($n, $c); SELECT last_insert_rowid();";
+        cmd.Parameters.AddWithValue("$n", name);
+        cmd.Parameters.AddWithValue("$c", DateTime.Now.ToString("o"));
+        long id = (long)cmd.ExecuteScalar()!;
+        return new Album { Id = id, Name = name };
+    }
+
+    public void RenameAlbum(long id, string name)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE albums SET Name=$n WHERE Id=$id;";
+        cmd.Parameters.AddWithValue("$n", name);
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void DeleteAlbum(long id)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE clips SET AlbumId=NULL WHERE AlbumId=$id; DELETE FROM albums WHERE Id=$id;";
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void SetClipAlbum(long clipId, long? albumId)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE clips SET AlbumId=$a WHERE Id=$id;";
+        cmd.Parameters.AddWithValue("$a", (object?)albumId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$id", clipId);
         cmd.ExecuteNonQuery();
     }
 
@@ -49,8 +118,8 @@ public sealed class ClipLibrary
         using var c = Open();
         using var cmd = c.CreateCommand();
         cmd.CommandText = """
-            INSERT INTO clips (FilePath,Title,Game,CreatedAt,DurationMs,SizeBytes,Width,Height,ThumbnailPath,ShareUrl,Tracks,Tags)
-            VALUES ($f,$t,$g,$c,$d,$s,$w,$h,$th,$u,$tr,$tg);
+            INSERT INTO clips (FilePath,Title,Game,CreatedAt,DurationMs,SizeBytes,Width,Height,ThumbnailPath,ShareUrl,AlbumId,Tracks,Tags)
+            VALUES ($f,$t,$g,$c,$d,$s,$w,$h,$th,$u,$al,$tr,$tg);
             SELECT last_insert_rowid();
             """;
         Bind(cmd, clip);
@@ -59,21 +128,26 @@ public sealed class ClipLibrary
         return id;
     }
 
-    public List<Clip> GetAll()
+    public List<Clip> GetAll(long? albumId = null)
     {
         using var c = Open();
         using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT * FROM clips ORDER BY datetime(CreatedAt) DESC;";
+        cmd.CommandText = albumId is null
+            ? "SELECT * FROM clips ORDER BY datetime(CreatedAt) DESC;"
+            : "SELECT * FROM clips WHERE AlbumId=$a ORDER BY datetime(CreatedAt) DESC;";
+        if (albumId is not null) cmd.Parameters.AddWithValue("$a", albumId);
         return ReadAll(cmd);
     }
 
-    public List<Clip> Search(string query)
+    public List<Clip> Search(string query, long? albumId = null)
     {
-        if (string.IsNullOrWhiteSpace(query)) return GetAll();
+        if (string.IsNullOrWhiteSpace(query)) return GetAll(albumId);
         using var c = Open();
         using var cmd = c.CreateCommand();
-        cmd.CommandText = "SELECT * FROM clips WHERE Title LIKE $q OR Game LIKE $q OR Tags LIKE $q ORDER BY datetime(CreatedAt) DESC;";
+        string albumClause = albumId is null ? "" : " AND AlbumId=$a";
+        cmd.CommandText = $"SELECT * FROM clips WHERE (Title LIKE $q OR Game LIKE $q OR Tags LIKE $q){albumClause} ORDER BY datetime(CreatedAt) DESC;";
         cmd.Parameters.AddWithValue("$q", $"%{query}%");
+        if (albumId is not null) cmd.Parameters.AddWithValue("$a", albumId);
         return ReadAll(cmd);
     }
 
@@ -83,7 +157,7 @@ public sealed class ClipLibrary
         using var cmd = c.CreateCommand();
         cmd.CommandText = """
             UPDATE clips SET FilePath=$f,Title=$t,Game=$g,CreatedAt=$c,DurationMs=$d,SizeBytes=$s,
-                Width=$w,Height=$h,ThumbnailPath=$th,ShareUrl=$u,Tracks=$tr,Tags=$tg WHERE Id=$id;
+                Width=$w,Height=$h,ThumbnailPath=$th,ShareUrl=$u,AlbumId=$al,Tracks=$tr,Tags=$tg WHERE Id=$id;
             """;
         Bind(cmd, clip);
         cmd.Parameters.AddWithValue("$id", clip.Id);
@@ -111,6 +185,7 @@ public sealed class ClipLibrary
         cmd.Parameters.AddWithValue("$h", clip.Height);
         cmd.Parameters.AddWithValue("$th", (object?)clip.ThumbnailPath ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$u", (object?)clip.ShareUrl ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$al", (object?)clip.AlbumId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$tr", clip.Tracks);
         cmd.Parameters.AddWithValue("$tg", clip.Tags);
     }
@@ -134,6 +209,7 @@ public sealed class ClipLibrary
                 Height = r.GetInt32(r.GetOrdinal("Height")),
                 ThumbnailPath = r["ThumbnailPath"] as string,
                 ShareUrl = r["ShareUrl"] as string,
+                AlbumId = r["AlbumId"] is long al ? al : null,
                 Tracks = r.GetString(r.GetOrdinal("Tracks")),
                 Tags = r.GetString(r.GetOrdinal("Tags")),
             });

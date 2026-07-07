@@ -14,6 +14,8 @@ public sealed class Clip
     public int Height { get; set; }
     public string? ThumbnailPath { get; set; }
     public string? ShareUrl { get; set; }
+    /// <summary>Album this clip belongs to, or null for "unsorted".</summary>
+    public long? AlbumId { get; set; }
     /// <summary>Comma-separated audio track names, in stream order (e.g. "Desktop,Voice,Mic").</summary>
     public string Tracks { get; set; } = "";
     /// <summary>Comma-separated free-form tags.</summary>

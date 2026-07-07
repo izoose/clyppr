@@ -16,6 +16,10 @@ public partial class MainViewModel : ObservableObject
     private readonly RecordingService _recording;
 
     public ObservableCollection<Clip> Clips { get; } = new();
+    public ObservableCollection<AlbumViewModel> Albums { get; } = new();
+
+    /// <summary>The clip whose "⋯" menu is currently open (set by the view).</summary>
+    public Clip? ContextClip { get; set; }
 
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private bool _bufferRunning;
@@ -24,6 +28,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _toast = "";
     [ObservableProperty] private bool _showSettings;
     [ObservableProperty] private SettingsViewModel? _currentSettings;
+    [ObservableProperty] private long? _selectedAlbumId;
+    [ObservableProperty] private bool _allSelected = true;
 
     public RecordingService Recording => _recording;
 
@@ -37,6 +43,7 @@ public partial class MainViewModel : ObservableObject
         _recording.ClipSaved += clip => Dispatch(() => { InsertClip(clip); ShowToast($"Clipped “{clip.Title}”"); });
         _recording.Error += msg => Dispatch(() => ShowToast(msg));
 
+        LoadAlbums();
         Reload();
         RefreshState();
     }
@@ -46,7 +53,102 @@ public partial class MainViewModel : ObservableObject
     private void Reload()
     {
         Clips.Clear();
-        foreach (var c in _library.Search(SearchText)) Clips.Add(c);
+        foreach (var c in _library.Search(SearchText, SelectedAlbumId)) Clips.Add(c);
+    }
+
+    private void LoadAlbums()
+    {
+        Albums.Clear();
+        foreach (var a in _library.GetAlbums())
+            Albums.Add(new AlbumViewModel(a) { IsSelected = a.Id == SelectedAlbumId });
+        AllSelected = SelectedAlbumId is null;
+    }
+
+    // ---- album commands ----
+
+    [RelayCommand]
+    private void SelectAll()
+    {
+        SelectedAlbumId = null;
+        foreach (var a in Albums) a.IsSelected = false;
+        AllSelected = true;
+        Reload();
+    }
+
+    [RelayCommand]
+    private void SelectAlbum(AlbumViewModel? album)
+    {
+        if (album is null) return;
+        SelectedAlbumId = album.Id;
+        foreach (var a in Albums) a.IsSelected = a.Id == album.Id;
+        AllSelected = false;
+        Reload();
+    }
+
+    [RelayCommand]
+    private void NewAlbum()
+    {
+        string? name = InputDialog.Ask(Application.Current.MainWindow, "New album name");
+        if (name is null) return;
+        var album = _library.AddAlbum(name);
+        LoadAlbums();
+        SelectAlbum(Albums.FirstOrDefault(a => a.Id == album.Id));
+    }
+
+    [RelayCommand]
+    private void RenameAlbum(AlbumViewModel? album)
+    {
+        if (album is null) return;
+        string? name = InputDialog.Ask(Application.Current.MainWindow, "Rename album", album.Name);
+        if (name is null) return;
+        _library.RenameAlbum(album.Id, name);
+        album.Name = name;
+    }
+
+    [RelayCommand]
+    private void DeleteAlbum(AlbumViewModel? album)
+    {
+        if (album is null) return;
+        if (MessageBox.Show($"Delete album “{album.Name}”?\nClips stay, but are moved to All.",
+                "Delete album", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        _library.DeleteAlbum(album.Id);
+        if (SelectedAlbumId == album.Id) SelectAll();
+        LoadAlbums();
+        Reload();
+    }
+
+    [RelayCommand]
+    private void AddToAlbum(AlbumViewModel? album)
+    {
+        if (album is null || ContextClip is null) return;
+        _library.SetClipAlbum(ContextClip.Id, album.Id);
+        ContextClip.AlbumId = album.Id;
+        if (SelectedAlbumId is not null && SelectedAlbumId != album.Id) Clips.Remove(ContextClip);
+        ShowToast($"Added to “{album.Name}”");
+    }
+
+    [RelayCommand]
+    private void RemoveFromAlbum()
+    {
+        if (ContextClip is null) return;
+        _library.SetClipAlbum(ContextClip.Id, null);
+        ContextClip.AlbumId = null;
+        if (SelectedAlbumId is not null) Clips.Remove(ContextClip);
+        ShowToast("Removed from album");
+    }
+
+    [RelayCommand]
+    private void AddToNewAlbum()
+    {
+        if (ContextClip is null) return;
+        string? name = InputDialog.Ask(Application.Current.MainWindow, "New album name");
+        if (name is null) return;
+        var album = _library.AddAlbum(name);
+        _library.SetClipAlbum(ContextClip.Id, album.Id);
+        ContextClip.AlbumId = album.Id;
+        LoadAlbums();
+        if (SelectedAlbumId is not null && SelectedAlbumId != album.Id) Clips.Remove(ContextClip);
+        ShowToast($"Added to “{name}”");
     }
 
     private void InsertClip(Clip clip)
