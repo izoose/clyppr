@@ -223,6 +223,19 @@
         <Setter Property="FontSize" Value="12"/>
     </Style>
 
+    <!-- Favorite (star) toggle on a card -->
+    <Style x:Key="FavButton" TargetType="Button" BasedOn="{StaticResource CardButton}">
+        <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+        <Setter Property="Content" Value="&#xE734;"/>
+        <Setter Property="Foreground" Value="{StaticResource TextDim}"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                <Setter Property="Content" Value="&#xE735;"/>
+                <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- Search / text box -->
     <Style x:Key="SearchBox" TargetType="TextBox">
         <Setter Property="Foreground" Value="{StaticResource Text}"/>

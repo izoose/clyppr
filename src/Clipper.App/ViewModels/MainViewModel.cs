@@ -30,6 +30,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private SettingsViewModel? _currentSettings;
     [ObservableProperty] private long? _selectedAlbumId;
     [ObservableProperty] private bool _allSelected = true;
+    [ObservableProperty] private bool _favoritesOnly;
 
     public RecordingService Recording => _recording;
 
@@ -53,7 +54,23 @@ public partial class MainViewModel : ObservableObject
     private void Reload()
     {
         Clips.Clear();
-        foreach (var c in _library.Search(SearchText, SelectedAlbumId)) Clips.Add(c);
+        foreach (var c in _library.Query(SearchText, SelectedAlbumId, FavoritesOnly)) Clips.Add(c);
+    }
+
+    [RelayCommand]
+    private void ToggleFavorite(Clip? clip)
+    {
+        if (clip is null) return;
+        clip.IsFavorite = !clip.IsFavorite;
+        _library.SetFavorite(clip.Id, clip.IsFavorite);
+        Reload();   // refresh the star (and drop it if the Favorites filter is on and it was unfavorited)
+    }
+
+    [RelayCommand]
+    private void ToggleFavoritesFilter()
+    {
+        FavoritesOnly = !FavoritesOnly;
+        Reload();
     }
 
     private void LoadAlbums()

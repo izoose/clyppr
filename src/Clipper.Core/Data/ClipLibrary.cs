@@ -154,13 +154,22 @@ public sealed class ClipLibrary
     }
 
     public List<Clip> Search(string query, long? albumId = null)
+        => Query(query, albumId, false);
+
+    /// <summary>Combined filter: text search + album + favorites-only.</summary>
+    public List<Clip> Query(string? search, long? albumId, bool favoritesOnly)
     {
-        if (string.IsNullOrWhiteSpace(query)) return GetAll(albumId);
+        var where = new List<string>();
+        if (!string.IsNullOrWhiteSpace(search)) where.Add("(Title LIKE $q OR Game LIKE $q OR Tags LIKE $q)");
+        if (albumId is not null) where.Add("AlbumId=$a");
+        if (favoritesOnly) where.Add("IsFavorite=1");
+
         using var c = Open();
         using var cmd = c.CreateCommand();
-        string albumClause = albumId is null ? "" : " AND AlbumId=$a";
-        cmd.CommandText = $"SELECT * FROM clips WHERE (Title LIKE $q OR Game LIKE $q OR Tags LIKE $q){albumClause} ORDER BY datetime(CreatedAt) DESC;";
-        cmd.Parameters.AddWithValue("$q", $"%{query}%");
+        cmd.CommandText = "SELECT * FROM clips"
+            + (where.Count > 0 ? " WHERE " + string.Join(" AND ", where) : "")
+            + " ORDER BY datetime(CreatedAt) DESC;";
+        if (!string.IsNullOrWhiteSpace(search)) cmd.Parameters.AddWithValue("$q", $"%{search}%");
         if (albumId is not null) cmd.Parameters.AddWithValue("$a", albumId);
         return ReadAll(cmd);
     }
