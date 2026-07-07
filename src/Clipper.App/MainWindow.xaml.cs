@@ -91,6 +91,13 @@ public partial class MainWindow : Window
         menu.Items.Add(mi);
     }
 
+    // Clicking a clip's thumbnail opens it in the editor.
+    private void Thumb_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: Clip clip } && DataContext is MainViewModel vm)
+            vm.EditCommand.Execute(clip);
+    }
+
     // ---- hover-to-preview ----
 
     private static readonly string[] VideoExts = { ".mp4", ".mkv", ".mov", ".webm", ".avi" };

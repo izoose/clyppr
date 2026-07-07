@@ -7,6 +7,7 @@
         Icon="pack://application:,,,/Assets/clipper.png"
         Background="{StaticResource Bg}" WindowStartupLocation="CenterOwner"
         WindowStyle="None" ResizeMode="CanResize" UseLayoutRounding="True"
+        FontFamily="{StaticResource AppFont}"
         TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale">
 
     <shell:WindowChrome.WindowChrome>

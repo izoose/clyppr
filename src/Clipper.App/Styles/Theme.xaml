@@ -18,6 +18,8 @@
     <SolidColorBrush x:Key="Hover" Color="#20FFFFFF"/>
     <SolidColorBrush x:Key="MenuBg" Color="#1D1D22"/>
 
+    <FontFamily x:Key="AppFont">pack://application:,,,/Assets/Fonts/#Poppins</FontFamily>
+
     <!-- ===== Dark context menus ===== -->
     <Style TargetType="ContextMenu">
         <Setter Property="Background" Value="{StaticResource MenuBg}"/>

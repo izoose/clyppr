@@ -5,6 +5,7 @@
         Title="Edit clip" Height="700" Width="1040" MinHeight="520" MinWidth="820"
         Icon="pack://application:,,,/Assets/clipper.png"
         Background="{StaticResource Bg}" WindowStartupLocation="CenterScreen" UseLayoutRounding="True"
+        FontFamily="{StaticResource AppFont}"
         TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale">
     <Grid>
         <Grid.ColumnDefinitions>

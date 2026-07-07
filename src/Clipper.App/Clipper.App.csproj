@@ -20,6 +20,7 @@
   <ItemGroup>
     <Resource Include="Assets\clipper.png" />
     <Resource Include="Assets\clipper.ico" />
+    <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
 
   <ItemGroup>

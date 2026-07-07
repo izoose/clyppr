@@ -6,6 +6,7 @@
         Title="Clipper" Height="760" Width="1200" MinHeight="520" MinWidth="900"
         Icon="pack://application:,,,/Assets/clipper.png"
         Background="{StaticResource Bg}" WindowStartupLocation="CenterScreen"
+        FontFamily="{StaticResource AppFont}"
         WindowStyle="None" ResizeMode="CanResize" UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale">
 
@@ -122,8 +123,8 @@
                                 <Button Style="{StaticResource BarButton}" Command="{Binding OpenMontageCommand}" ToolTip="Stitch clips into one video"
                                         AutomationProperties.AutomationId="MontageBtn">
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="&#xE8B9;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,7,0"/>
-                                        <TextBlock Text="Montage"/>
+                                        <TextBlock Text="&#xE8B2;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Montage" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
                                 <Button Style="{StaticResource BarButton}" Command="{Binding ImportCommand}">
@@ -142,8 +143,8 @@
                             <Button Style="{StaticResource Pill}" ToolTip="Favorites only" Command="{Binding ToggleFavoritesFilterCommand}"
                                     Tag="{Binding FavoritesOnly, Converter={x:Static local:ActiveTagConverter.WhenTrue}}">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#xE735;" FontFamily="Segoe MDL2 Assets" FontSize="11" Margin="0,0,5,0"/>
-                                    <TextBlock Text="Favorites"/>
+                                    <TextBlock Text="&#xE734;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Favorites" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
                             <ItemsControl ItemsSource="{Binding Albums}">
@@ -182,13 +183,13 @@
                                                 </Style>
                                             </Border.Style>
                                             <StackPanel>
-                                                <Grid Height="191">
+                                                <Grid Height="191" Cursor="Hand" Background="Transparent" MouseLeftButtonUp="Thumb_Click">
                                                     <Border CornerRadius="11,11,0,0" ClipToBounds="True">
                                                         <Grid>
                                                             <Rectangle Fill="#08080A"/>
                                                             <Image Source="{Binding ThumbnailPath, Converter={StaticResource Thumb}}" Stretch="UniformToFill"/>
                                                             <MediaElement x:Name="Preview" Stretch="UniformToFill" LoadedBehavior="Manual"
-                                                                          Volume="0" Visibility="Collapsed" IsMuted="True"/>
+                                                                          Volume="0" Visibility="Collapsed" IsMuted="True" IsHitTestVisible="False"/>
                                                         </Grid>
                                                     </Border>
                                                     <Border Background="#B0000000" CornerRadius="5" Padding="6,2" Margin="0,0,8,8"
@@ -226,8 +227,8 @@
                                                                 AutomationProperties.AutomationId="ShareBtn"
                                                                 Command="{Binding DataContext.ShareCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,6,0"/>
-                                                                <TextBlock Text="Copy Link" FontSize="12"/>
+                                                                <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="Copy Link" FontSize="12" VerticalAlignment="Center"/>
                                                             </StackPanel>
                                                         </Button>
                                                         <Button Style="{StaticResource CardButton}" Content="&#xE712;" FontFamily="Segoe MDL2 Assets" Margin="6,0,0,0" ToolTip="More"
