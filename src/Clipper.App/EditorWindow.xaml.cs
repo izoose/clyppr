@@ -1,21 +1,27 @@
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace Clipper.App;
 
 public partial class EditorWindow : Window
 {
-    // Segoe MDL2 Assets glyphs via code point (avoids literal PUA chars in source).
     private static readonly string PlayGlyph = ((char)0xE768).ToString();
     private static readonly string PauseGlyph = ((char)0xE769).ToString();
     private static readonly string MuteGlyph = ((char)0xE74F).ToString();
     private static readonly string VolumeGlyph = ((char)0xE767).ToString();
+    private static readonly string MaxGlyph = ((char)0xE922).ToString();
+    private static readonly string RestoreGlyph = ((char)0xE923).ToString();
 
     private readonly EditorViewModel _vm;
     private readonly DispatcherTimer _timer;
     private bool _timerUpdate;
     private bool _playing;
     private bool _muted = true;
+
+    private double _zoom = 1.0;
+    private bool _panning;
+    private Point _panStart;
 
     public EditorWindow(EditorViewModel vm)
     {
@@ -27,15 +33,21 @@ public partial class EditorWindow : Window
 
         Loaded += OnLoaded;
         Closed += OnClosed;
+        StateChanged += (_, _) => MaxBtn.Content = WindowState == WindowState.Maximized ? RestoreGlyph : MaxGlyph;
         Player.MediaOpened += OnMediaOpened;
         Player.MediaEnded += (_, _) => { Player.Pause(); _playing = false; UpdatePlayIcon(); };
     }
 
+    // ---- window ----
+    private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void Max_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         Player.Source = new Uri(_vm.FilePath);
-        Player.Volume = 0;                 // start muted — never surprise the user with audio
-        Player.Play();                     // Play then Pause forces the first frame to render
+        Player.Volume = 0;
+        Player.Play();
         Player.Pause();
         _timer.Start();
     }
@@ -61,7 +73,7 @@ public partial class EditorWindow : Window
 
     private void PosSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (_timerUpdate) return;                       // change came from the tick, not the user
+        if (_timerUpdate) return;
         Player.Position = TimeSpan.FromSeconds(e.NewValue);
     }
 
@@ -77,12 +89,50 @@ public partial class EditorWindow : Window
     private void Mute_Click(object sender, RoutedEventArgs e)
     {
         _muted = !_muted;
-        Player.Volume = _muted ? 0 : 0.8;
+        Player.Volume = _muted ? 0 : 1.0;
         MuteBtn.Content = _muted ? MuteGlyph : VolumeGlyph;
     }
 
     private void SetIn_Click(object sender, RoutedEventArgs e) => _vm.SetIn(Player.Position.TotalSeconds);
     private void SetOut_Click(object sender, RoutedEventArgs e) => _vm.SetOut(Player.Position.TotalSeconds);
+
+    // ---- zoom & pan ----
+    private void SetZoom(double z)
+    {
+        _zoom = Math.Clamp(z, 1.0, 6.0);
+        Zoom.ScaleX = Zoom.ScaleY = _zoom;
+        ZoomText.Text = $"{_zoom * 100:0}%";
+        if (_zoom <= 1.0) { Pan.X = 0; Pan.Y = 0; }
+    }
+
+    private void ZoomIn_Click(object sender, RoutedEventArgs e) => SetZoom(_zoom * 1.25);
+    private void ZoomOut_Click(object sender, RoutedEventArgs e) => SetZoom(_zoom / 1.25);
+    private void ZoomReset_Click(object sender, RoutedEventArgs e) => SetZoom(1.0);
+
+    private void Preview_Wheel(object sender, MouseWheelEventArgs e) => SetZoom(e.Delta > 0 ? _zoom * 1.15 : _zoom / 1.15);
+
+    private void Preview_Down(object sender, MouseButtonEventArgs e)
+    {
+        if (_zoom <= 1.0) return;
+        _panning = true;
+        _panStart = e.GetPosition(PreviewHost);
+        PreviewHost.CaptureMouse();
+    }
+
+    private void Preview_Move(object sender, MouseEventArgs e)
+    {
+        if (!_panning) return;
+        var p = e.GetPosition(PreviewHost);
+        Pan.X += p.X - _panStart.X;
+        Pan.Y += p.Y - _panStart.Y;
+        _panStart = p;
+    }
+
+    private void Preview_Up(object sender, MouseButtonEventArgs e)
+    {
+        _panning = false;
+        PreviewHost.ReleaseMouseCapture();
+    }
 
     private void OnClosed(object? sender, EventArgs e)
     {

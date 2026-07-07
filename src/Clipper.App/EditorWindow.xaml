@@ -2,111 +2,146 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:Clipper.App"
-        Title="Edit clip" Height="700" Width="1040" MinHeight="520" MinWidth="820"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Edit clip" Height="720" Width="1080" MinHeight="540" MinWidth="860"
         Icon="pack://application:,,,/Assets/clipper.png"
-        Background="{StaticResource Bg}" WindowStartupLocation="CenterScreen" UseLayoutRounding="True"
+        Background="{StaticResource Bg}" WindowStartupLocation="CenterScreen"
+        WindowStyle="None" ResizeMode="CanResize" UseLayoutRounding="True"
         FontFamily="{StaticResource AppFont}"
         TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale">
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="300"/>
-        </Grid.ColumnDefinitions>
 
-        <!-- Preview + transport + trim -->
-        <Grid Grid.Column="0" Margin="14">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="40" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Border BorderBrush="{StaticResource Border}" BorderThickness="1">
+        <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
                 <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Background="#000000" CornerRadius="10" ClipToBounds="True">
-                <MediaElement x:Name="Player" LoadedBehavior="Manual" ScrubbingEnabled="True" Stretch="Uniform"/>
-            </Border>
+            <!-- Title bar -->
+            <Grid Grid.Row="0" Background="{StaticResource TopBar}">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+                    <Image Source="pack://application:,,,/Assets/clipper.png" Width="18" Height="18" VerticalAlignment="Center"/>
+                    <TextBlock Text="Edit clip" Foreground="{StaticResource Text}" FontSize="13" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource WindowButton}" Content="&#xE921;" Click="Min_Click"/>
+                    <Button x:Name="MaxBtn" Style="{StaticResource WindowButton}" Content="&#xE922;" Click="Max_Click"/>
+                    <Button Style="{StaticResource WindowCloseButton}" Content="&#xE8BB;" Click="Close_Click"/>
+                </StackPanel>
+            </Grid>
 
-            <!-- Transport -->
-            <Grid Grid.Row="1" Margin="0,12,0,0">
+            <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="300"/>
                 </Grid.ColumnDefinitions>
-                <Button x:Name="PlayBtn" Grid.Column="0" Style="{StaticResource CardButton}" Content="&#xE768;"
-                        FontFamily="Segoe MDL2 Assets" Click="PlayPause_Click" Width="40"/>
-                <Button Grid.Column="1" Style="{StaticResource CardButton}" Content="&#xE74F;" Margin="6,0,0,0"
-                        FontFamily="Segoe MDL2 Assets" Click="Mute_Click" ToolTip="Preview audio (starts muted)" x:Name="MuteBtn"/>
-                <Slider x:Name="PosSlider" Grid.Column="2" Margin="12,0" VerticalAlignment="Center" Minimum="0"
-                        ValueChanged="PosSlider_ValueChanged"/>
-                <TextBlock x:Name="TimeText" Grid.Column="3" Foreground="{StaticResource TextDim}" VerticalAlignment="Center"
-                           FontSize="12" Text="0:00 / 0:00"/>
-            </Grid>
 
-            <!-- Trim -->
-            <Border Grid.Row="2" Background="{StaticResource Card}" CornerRadius="10" Margin="0,12,0,0" Padding="12,10">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
-                        <Button Style="{StaticResource CardButton}" Content="Set Start" Click="SetIn_Click"/>
-                        <TextBlock Text="{Binding InText}" Foreground="{StaticResource Text}" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="13"/>
-                    </StackPanel>
-                    <TextBlock Grid.Column="1" Text="{Binding SelectionText}" Foreground="{StaticResource Accent}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <TextBlock Text="{Binding OutText}" Foreground="{StaticResource Text}" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="13"/>
-                        <Button Style="{StaticResource CardButton}" Content="Set End" Click="SetOut_Click"/>
-                    </StackPanel>
+                <!-- Preview + transport + trim -->
+                <Grid Grid.Column="0" Margin="14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" x:Name="PreviewHost" Background="#000000" CornerRadius="10" ClipToBounds="True" Cursor="SizeAll"
+                            MouseWheel="Preview_Wheel" MouseLeftButtonDown="Preview_Down" MouseMove="Preview_Move" MouseLeftButtonUp="Preview_Up">
+                        <MediaElement x:Name="Player" LoadedBehavior="Manual" ScrubbingEnabled="True" Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
+                            <MediaElement.RenderTransform>
+                                <TransformGroup>
+                                    <ScaleTransform x:Name="Zoom"/>
+                                    <TranslateTransform x:Name="Pan"/>
+                                </TransformGroup>
+                            </MediaElement.RenderTransform>
+                        </MediaElement>
+                    </Border>
+
+                    <!-- Transport -->
+                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="PlayBtn" Grid.Column="0" Style="{StaticResource CardButton}" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" Click="PlayPause_Click" Width="40"/>
+                        <Button Grid.Column="1" Style="{StaticResource CardButton}" Content="&#xE74F;" Margin="6,0,0,0" FontFamily="Segoe MDL2 Assets" Click="Mute_Click" ToolTip="Preview audio" x:Name="MuteBtn"/>
+                        <Slider x:Name="PosSlider" Grid.Column="2" Margin="12,0" VerticalAlignment="Center" Minimum="0" ValueChanged="PosSlider_ValueChanged"/>
+                        <TextBlock x:Name="TimeText" Grid.Column="3" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" FontSize="12" Text="0:00 / 0:00" Margin="0,0,10,0"/>
+                        <StackPanel Grid.Column="4" Orientation="Horizontal">
+                            <Button Style="{StaticResource CardButton}" Content="&#xE71F;" FontFamily="Segoe MDL2 Assets" ToolTip="Zoom out" Click="ZoomOut_Click"/>
+                            <TextBlock x:Name="ZoomText" Text="100%" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" FontSize="12" Margin="8,0" MinWidth="34" TextAlignment="Center"/>
+                            <Button Style="{StaticResource CardButton}" Content="&#xE8A3;" FontFamily="Segoe MDL2 Assets" ToolTip="Zoom in" Click="ZoomIn_Click"/>
+                            <Button Style="{StaticResource CardButton}" Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="6,0,0,0" ToolTip="Reset zoom" Click="ZoomReset_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Trim -->
+                    <Border Grid.Row="2" Background="{StaticResource Card}" CornerRadius="10" Margin="0,12,0,0" Padding="12,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <Button Style="{StaticResource CardButton}" Content="Set Start" Click="SetIn_Click"/>
+                                <TextBlock Text="{Binding InText}" Foreground="{StaticResource Text}" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="13"/>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectionText}" Foreground="{StaticResource Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <TextBlock Text="{Binding OutText}" Foreground="{StaticResource Text}" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="13"/>
+                                <Button Style="{StaticResource CardButton}" Content="Set End" Click="SetOut_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                 </Grid>
-            </Border>
-        </Grid>
 
-        <!-- Audio tracks + export -->
-        <Border Grid.Column="1" Background="{StaticResource TopBar}" BorderBrush="{StaticResource Border}" BorderThickness="1,0,0,0">
-            <Grid Margin="16">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                <!-- Audio tracks + export -->
+                <Border Grid.Column="1" Background="{StaticResource TopBar}" BorderBrush="{StaticResource Border}" BorderThickness="1,0,0,0">
+                    <Grid Margin="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0">
-                    <TextBlock Text="AUDIO TRACKS" Foreground="{StaticResource TextDim}" FontSize="12" FontWeight="SemiBold"/>
-                    <TextBlock Text="Uncheck to cut a source (e.g. Discord)." Foreground="{StaticResource TextFaint}" FontSize="11" Margin="0,3,0,10" TextWrapping="Wrap"/>
-                </StackPanel>
+                        <StackPanel Grid.Row="0">
+                            <TextBlock Text="AUDIO TRACKS" Foreground="{StaticResource TextDim}" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBlock Text="Uncheck to cut a source. Push volume past 100% to boost." Foreground="{StaticResource TextFaint}" FontSize="11" Margin="0,3,0,10" TextWrapping="Wrap"/>
+                        </StackPanel>
 
-                <ItemsControl Grid.Row="1" ItemsSource="{Binding Tracks}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="{StaticResource Card}" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
-                                <StackPanel>
-                                    <DockPanel>
-                                        <CheckBox IsChecked="{Binding Keep}" Foreground="{StaticResource Text}"
-                                                  Content="{Binding Name}" FontSize="13" VerticalContentAlignment="Center"/>
-                                        <TextBlock Text="{Binding VolumeText}" Foreground="{StaticResource TextDim}"
-                                                   HorizontalAlignment="Right" FontSize="12" VerticalAlignment="Center"/>
-                                    </DockPanel>
-                                    <Slider Minimum="0" Maximum="1.5" Value="{Binding Volume}" Margin="0,6,0,0"
-                                            IsEnabled="{Binding Keep}"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding Tracks}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource Card}" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <CheckBox IsChecked="{Binding Keep}" Foreground="{StaticResource Text}" Content="{Binding Name}" FontSize="13" VerticalContentAlignment="Center"/>
+                                                <TextBlock Text="{Binding VolumeText}" Foreground="{StaticResource TextDim}" HorizontalAlignment="Right" FontSize="12" VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                            <Slider Minimum="0" Maximum="3" Value="{Binding Volume}" Margin="0,6,0,0" IsEnabled="{Binding Keep}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
-                <StackPanel Grid.Row="2">
-                    <TextBlock Text="{Binding Status}" Foreground="{StaticResource TextDim}" FontSize="12" Margin="0,0,0,8"
-                               TextWrapping="Wrap"/>
-                    <Button Style="{StaticResource AccentButton}" Content="Export clip" HorizontalAlignment="Stretch"
-                            Padding="12,10" Command="{Binding ExportCommand}" IsEnabled="{Binding Exporting, Converter={x:Static local:InverseBoolConverter.Instance}}"/>
-                    <Button Style="{StaticResource CardButton}" Content="Export as GIF" HorizontalAlignment="Stretch" Margin="0,8,0,0"
-                            Padding="12,9" Command="{Binding ExportGifCommand}" IsEnabled="{Binding Exporting, Converter={x:Static local:InverseBoolConverter.Instance}}"/>
-                </StackPanel>
+                        <StackPanel Grid.Row="2">
+                            <TextBlock Text="{Binding Status}" Foreground="{StaticResource TextDim}" FontSize="12" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                            <Button Style="{StaticResource AccentButton}" Content="Export clip" HorizontalAlignment="Stretch" Padding="12,10"
+                                    Command="{Binding ExportCommand}" IsEnabled="{Binding Exporting, Converter={x:Static local:InverseBoolConverter.Instance}}"/>
+                            <Button Style="{StaticResource CardButton}" Content="Export as GIF" HorizontalAlignment="Stretch" Margin="0,8,0,0" Padding="12,9"
+                                    Command="{Binding ExportGifCommand}" IsEnabled="{Binding Exporting, Converter={x:Static local:InverseBoolConverter.Instance}}"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </Grid>
-        </Border>
-    </Grid>
+        </Grid>
+    </Border>
 </Window>
