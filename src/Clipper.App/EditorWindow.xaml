@@ -102,6 +102,8 @@
                                TextWrapping="Wrap"/>
                     <Button Style="{StaticResource AccentButton}" Content="Export clip" HorizontalAlignment="Stretch"
                             Padding="12,10" Command="{Binding ExportCommand}" IsEnabled="{Binding Exporting, Converter={x:Static local:InverseBoolConverter.Instance}}"/>
+                    <Button Style="{StaticResource CardButton}" Content="Export as GIF" HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                            Padding="12,9" Command="{Binding ExportGifCommand}" IsEnabled="{Binding Exporting, Converter={x:Static local:InverseBoolConverter.Instance}}"/>
                 </StackPanel>
             </Grid>
         </Border>

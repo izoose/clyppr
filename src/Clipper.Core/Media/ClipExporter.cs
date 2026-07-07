@@ -66,4 +66,32 @@ public static class ClipExporter
         if (p.ExitCode != 0 || !File.Exists(output))
             throw new InvalidOperationException("Export failed: " + err);
     }
+
+    /// <summary>Exports [in, out] as a high-quality GIF (2-pass palette in one filtergraph).</summary>
+    public static void ExportGif(
+        string input, string output, TimeSpan inPoint, TimeSpan outPoint,
+        int fps = 15, int width = 480, string ffmpegPath = "ffmpeg")
+    {
+        double start = Math.Max(0, inPoint.TotalSeconds);
+        double dur = Math.Max(0.1, (outPoint - inPoint).TotalSeconds);
+        string S(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+        string filter = $"fps={fps},scale={width}:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse";
+        string args = $"-y -hide_banner -loglevel error -ss {S(start)} -t {S(dur)} -i \"{input}\" " +
+                      $"-filter_complex \"{filter}\" -loop 0 \"{output}\"";
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = ffmpegPath,
+            Arguments = args,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        using var p = Process.Start(psi)!;
+        string err = p.StandardError.ReadToEnd();
+        p.WaitForExit();
+        if (p.ExitCode != 0 || !File.Exists(output))
+            throw new InvalidOperationException("GIF export failed: " + err);
+    }
 }

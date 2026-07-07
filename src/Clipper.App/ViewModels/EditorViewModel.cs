@@ -95,4 +95,29 @@ public partial class EditorViewModel : ObservableObject
         catch (Exception ex) { Status = "Failed: " + ex.Message; }
         finally { Exporting = false; }
     }
+
+    [RelayCommand]
+    private async Task ExportGif()
+    {
+        if (Exporting) return;
+        Exporting = true;
+        Status = "Making GIF…";
+
+        string dir = _settings.ClipsDirectory;
+        string outPath = Path.Combine(dir, Path.GetFileNameWithoutExtension(_clip.FilePath) + ".gif");
+        int n = 1;
+        while (File.Exists(outPath))
+            outPath = Path.Combine(dir, Path.GetFileNameWithoutExtension(_clip.FilePath) + $"_{n++}.gif");
+
+        try
+        {
+            await Task.Run(() => ClipExporter.ExportGif(
+                _clip.FilePath, outPath, TimeSpan.FromSeconds(InSeconds), TimeSpan.FromSeconds(OutSeconds)));
+            var clip = ClipImporter.Import(outPath, _library, game: _clip.Game);
+            _onExported(clip);
+            Status = "GIF exported ✓";
+        }
+        catch (Exception ex) { Status = "Failed: " + ex.Message; }
+        finally { Exporting = false; }
+    }
 }
