@@ -5,7 +5,8 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Clipper" Height="760" Width="1200" MinHeight="520" MinWidth="900"
         Background="{StaticResource Bg}" WindowStartupLocation="CenterScreen"
-        WindowStyle="None" ResizeMode="CanResize" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal">
+        WindowStyle="None" ResizeMode="CanResize" UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale">
 
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="40" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0"/>
