@@ -30,6 +30,12 @@ public sealed class RecordingService : IDisposable
     /// <summary>Raised when buffer/recording state changes so the UI can refresh.</summary>
     public event Action? StateChanged;
     public event Action<string>? Error;
+    /// <summary>Raised with a short on-screen message ("Saved the last 1m") after a capture.</summary>
+    public event Action<string>? Notification;
+
+    private string ClipLengthLabel => _settings.ClipLengthSeconds >= 60
+        ? $"{_settings.ClipLengthSeconds / 60}m"
+        : $"{_settings.ClipLengthSeconds}s";
 
     public bool BufferRunning => _buffer?.IsRunning ?? false;
     public bool ManualRecording => _recorder?.IsRecording ?? false;
@@ -160,6 +166,7 @@ public sealed class RecordingService : IDisposable
             title: game is null ? null : $"{game} — {DateTime.Now:MMM d}",
             tracks: string.Join(",", names), game: game);
         ClipSaved?.Invoke(clip);
+        Notification?.Invoke($"Saved the last {ClipLengthLabel}");
         return clip;
     }
 
@@ -201,6 +208,7 @@ public sealed class RecordingService : IDisposable
                     title: _manualGame is null ? null : $"{_manualGame} — {DateTime.Now:MMM d}",
                     tracks: string.Join(",", names), game: _manualGame);
                 ClipSaved?.Invoke(clip);
+                Notification?.Invoke("Recording saved");
             }
         }
         catch (Exception ex) { Error?.Invoke("Stop failed: " + ex.Message); }
@@ -268,6 +276,7 @@ public sealed class RecordingService : IDisposable
             };
             _library.Add(clip);
             ClipSaved?.Invoke(clip);
+            Notification?.Invoke("Screenshot saved");
             return clip;
         }
         catch (Exception ex) { Error?.Invoke("Screenshot failed: " + ex.Message); return null; }

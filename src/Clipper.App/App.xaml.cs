@@ -32,6 +32,8 @@ public partial class App : Application
         _mainWindow = new MainWindow { DataContext = vm };
         MainWindow = _mainWindow;
 
+        Recording.Notification += msg => Notifier.Show(msg);
+
         _tray = new TrayManager(this);
 
         bool startHidden = e.Args.Contains("--tray");
