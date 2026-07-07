@@ -17,6 +17,8 @@ public sealed class AppSettings
     public int ClipLengthSeconds { get; set; } = 30;
     public string HotkeyModifiers { get; set; } = "Alt";
     public string HotkeyKey { get; set; } = "C";
+    public string ScreenshotModifiers { get; set; } = "Alt";
+    public string ScreenshotKey { get; set; } = "S";
     public bool BufferEnabledOnStart { get; set; } = true;
 
     // Sharing (M5)

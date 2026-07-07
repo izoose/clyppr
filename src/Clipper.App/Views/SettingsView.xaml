@@ -103,11 +103,18 @@
                     <!-- Hotkeys -->
                     <StackPanel Visibility="{Binding Section, Converter={x:Static local:SectionVisibleConverter.Instance}, ConverterParameter=Hotkeys}">
                         <TextBlock Text="Hotkeys" Style="{StaticResource PanelTitle}"/>
-                        <TextBlock Text="The global hotkey that saves a clip from the buffer." Style="{StaticResource PanelDesc}"/>
+                        <TextBlock Text="Global hotkeys for clipping and screenshots." Style="{StaticResource PanelDesc}"/>
+                        <TextBlock Text="Clip (save the last few seconds)" Foreground="{StaticResource Text}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/>
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="14"/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0"><TextBlock Text="Modifiers (Alt / Control / Shift / Win)" Style="{StaticResource Label}"/><TextBox Style="{StaticResource SearchBox}" Text="{Binding HotkeyModifiers}"/></StackPanel>
                             <StackPanel Grid.Column="2"><TextBlock Text="Key" Style="{StaticResource Label}"/><TextBox Style="{StaticResource SearchBox}" Text="{Binding HotkeyKey}"/></StackPanel>
+                        </Grid>
+                        <TextBlock Text="Screenshot (grab a PNG)" Foreground="{StaticResource Text}" FontSize="13" FontWeight="SemiBold" Margin="0,18,0,6"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="14"/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0"><TextBlock Text="Modifiers (Alt / Control / Shift / Win)" Style="{StaticResource Label}"/><TextBox Style="{StaticResource SearchBox}" Text="{Binding ScreenshotModifiers}"/></StackPanel>
+                            <StackPanel Grid.Column="2"><TextBlock Text="Key" Style="{StaticResource Label}"/><TextBox Style="{StaticResource SearchBox}" Text="{Binding ScreenshotKey}"/></StackPanel>
                         </Grid>
                     </StackPanel>
 

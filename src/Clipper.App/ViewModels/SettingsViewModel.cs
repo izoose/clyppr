@@ -20,6 +20,8 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private int _clipLengthSeconds;
     [ObservableProperty] private string _hotkeyModifiers;
     [ObservableProperty] private string _hotkeyKey;
+    [ObservableProperty] private string _screenshotModifiers;
+    [ObservableProperty] private string _screenshotKey;
     [ObservableProperty] private bool _bufferEnabledOnStart;
     [ObservableProperty] private string _shareEndpoint;
     [ObservableProperty] private string _shareToken;
@@ -41,6 +43,8 @@ public partial class SettingsViewModel : ObservableObject
         _clipLengthSeconds = settings.ClipLengthSeconds;
         _hotkeyModifiers = settings.HotkeyModifiers;
         _hotkeyKey = settings.HotkeyKey;
+        _screenshotModifiers = settings.ScreenshotModifiers;
+        _screenshotKey = settings.ScreenshotKey;
         _bufferEnabledOnStart = settings.BufferEnabledOnStart;
         _shareEndpoint = settings.ShareEndpoint ?? "";
         _shareToken = settings.ShareToken ?? "";
@@ -68,6 +72,8 @@ public partial class SettingsViewModel : ObservableObject
         _settings.ClipLengthSeconds = Math.Clamp(ClipLengthSeconds, 5, BufferSeconds);
         _settings.HotkeyModifiers = string.IsNullOrWhiteSpace(HotkeyModifiers) ? "Alt" : HotkeyModifiers;
         _settings.HotkeyKey = string.IsNullOrWhiteSpace(HotkeyKey) ? "C" : HotkeyKey;
+        _settings.ScreenshotModifiers = string.IsNullOrWhiteSpace(ScreenshotModifiers) ? "Alt" : ScreenshotModifiers;
+        _settings.ScreenshotKey = string.IsNullOrWhiteSpace(ScreenshotKey) ? "S" : ScreenshotKey;
         _settings.BufferEnabledOnStart = BufferEnabledOnStart;
         _settings.ShareEndpoint = string.IsNullOrWhiteSpace(ShareEndpoint) ? null : ShareEndpoint.Trim();
         _settings.ShareToken = string.IsNullOrWhiteSpace(ShareToken) ? null : ShareToken.Trim();

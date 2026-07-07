@@ -17,6 +17,7 @@ public sealed class RecordingService : IDisposable
     private ReplayBuffer? _buffer;
     private Recorder? _recorder;
     private GlobalHotkey? _hotkey;
+    private GlobalHotkey? _shotHotkey;
     private string? _manualGame;
 
     /// <summary>Raised (on a background thread) after a clip is saved and added to the library.</summary>
@@ -135,11 +136,63 @@ public sealed class RecordingService : IDisposable
     public void RegisterHotkey()
     {
         _hotkey?.Dispose();
-        var mods = ParseModifiers(_settings.HotkeyModifiers);
-        uint vk = ParseKey(_settings.HotkeyKey);
-        _hotkey = new GlobalHotkey(mods, vk);
+        _hotkey = new GlobalHotkey(ParseModifiers(_settings.HotkeyModifiers), ParseKey(_settings.HotkeyKey));
         _hotkey.Pressed += () => SaveClip();
         _hotkey.Start();
+
+        _shotHotkey?.Dispose();
+        _shotHotkey = new GlobalHotkey(ParseModifiers(_settings.ScreenshotModifiers), ParseKey(_settings.ScreenshotKey));
+        _shotHotkey.Pressed += () => SaveScreenshot();
+        _shotHotkey.Start();
+    }
+
+    /// <summary>Grab the primary screen to a PNG and add it to the library.</summary>
+    public Clip? SaveScreenshot()
+    {
+        try
+        {
+            Directory.CreateDirectory(_settings.ClipsDirectory);
+            var screen = System.Windows.Forms.Screen.PrimaryScreen;
+            if (screen is null) return null;
+            var b = screen.Bounds;
+            string path = Path.Combine(_settings.ClipsDirectory, $"shot_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+            string thumb = Path.Combine(AppPaths.ThumbnailsDir, $"{Guid.NewGuid():N}.png");
+
+            using (var bmp = new System.Drawing.Bitmap(b.Width, b.Height))
+            {
+                using (var g = System.Drawing.Graphics.FromImage(bmp))
+                    g.CopyFromScreen(b.X, b.Y, 0, 0, bmp.Size);
+                bmp.Save(path, System.Drawing.Imaging.ImageFormat.Png);
+
+                int tw = 480, th = Math.Max(1, 480 * b.Height / b.Width);
+                using var tbmp = new System.Drawing.Bitmap(tw, th);
+                using (var tg = System.Drawing.Graphics.FromImage(tbmp))
+                {
+                    tg.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    tg.DrawImage(bmp, 0, 0, tw, th);
+                }
+                tbmp.Save(thumb, System.Drawing.Imaging.ImageFormat.Png);
+            }
+
+            string? game = AppDetector.ForegroundGame();
+            var clip = new Clip
+            {
+                FilePath = path,
+                Title = (game ?? "Screenshot") + $" — {DateTime.Now:MMM d}",
+                Game = game,
+                CreatedAt = DateTime.Now,
+                DurationMs = 0,
+                SizeBytes = new FileInfo(path).Length,
+                Width = b.Width,
+                Height = b.Height,
+                ThumbnailPath = thumb,
+                Tracks = "",
+            };
+            _library.Add(clip);
+            ClipSaved?.Invoke(clip);
+            return clip;
+        }
+        catch (Exception ex) { Error?.Invoke("Screenshot failed: " + ex.Message); return null; }
     }
 
     public static HotkeyModifiers ParseModifiers(string s)
@@ -181,6 +234,7 @@ public sealed class RecordingService : IDisposable
     public void Dispose()
     {
         _hotkey?.Dispose();
+        _shotHotkey?.Dispose();
         _buffer?.Dispose();
         _recorder?.Dispose();
     }
