@@ -7,9 +7,10 @@ publish/
 build/
 dist/
 
-# clips / audio scratch — never commit media
+# clips / audio scratch — never commit media (but keep bundled app assets)
 *.mp4
 *.wav
+!**/Assets/**/*.wav
 
 # images: ignore stray/generated PNGs, but KEEP app + website assets
 *.png
