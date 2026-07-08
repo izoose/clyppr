@@ -19,7 +19,8 @@ public static class ClipExporter
         string input, string output,
         TimeSpan inPoint, TimeSpan outPoint,
         IReadOnlyList<TrackChoice> tracks,
-        string ffmpegPath = "ffmpeg", string nvencPreset = "p5", int cq = 21)
+        string ffmpegPath = "ffmpeg", string nvencPreset = "p5", int cq = 21,
+        bool vertical = false)
     {
         double start = Math.Max(0, inPoint.TotalSeconds);
         double dur = Math.Max(0.1, (outPoint - inPoint).TotalSeconds);
@@ -30,14 +31,21 @@ public static class ClipExporter
         var sb = new StringBuilder();
         sb.Append($"-y -hide_banner -loglevel error -ss {S(start)} -i \"{input}\" -t {S(dur)} ");
 
+        // Video: normal is a straight map; vertical center-crops to a 9:16 1080x1920 slice.
+        string videoChain = vertical ? "[0:v]crop=ih*9/16:ih,scale=1080:1920,setsar=1[vout]" : "";
+        string videoMap = vertical ? "-map \"[vout]\"" : "-map 0:v";
+
+        // Audio: flatten the kept tracks (with per-track volume) to one stereo track.
+        string audioChain = "";
+        string audioArgs;
         if (kept.Count == 0)
         {
-            sb.Append("-map 0:v -an ");
+            audioArgs = "-an";
         }
         else if (kept.Count == 1)
         {
-            sb.Append($"-filter_complex \"[0:a:{kept[0].Index}]volume={S(kept[0].Volume)}[aout]\" ");
-            sb.Append("-map 0:v -map \"[aout]\" -c:a aac -b:a 192k ");
+            audioChain = $"[0:a:{kept[0].Index}]volume={S(kept[0].Volume)}[aout]";
+            audioArgs = "-map \"[aout]\" -c:a aac -b:a 192k";
         }
         else
         {
@@ -46,10 +54,19 @@ public static class ClipExporter
                 fc.Append($"[0:a:{kept[i].Index}]volume={S(kept[i].Volume)}[a{i}];");
             for (int i = 0; i < kept.Count; i++) fc.Append($"[a{i}]");
             fc.Append($"amix=inputs={kept.Count}:normalize=0[aout]");
-            sb.Append($"-filter_complex \"{fc}\" -map 0:v -map \"[aout]\" -c:a aac -b:a 192k ");
+            audioChain = fc.ToString();
+            audioArgs = "-map \"[aout]\" -c:a aac -b:a 192k";
         }
 
-        sb.Append($"-c:v h264_nvenc -preset {nvencPreset} -rc vbr -cq {cq} -pix_fmt yuv420p -movflags +faststart ");
+        // Emit a single -filter_complex combining whatever chains exist.
+        var graphs = new List<string>();
+        if (videoChain.Length > 0) graphs.Add(videoChain);
+        if (audioChain.Length > 0) graphs.Add(audioChain);
+        if (graphs.Count > 0) sb.Append($"-filter_complex \"{string.Join(";", graphs)}\" ");
+        sb.Append($"{videoMap} {audioArgs} ");
+
+        sb.Append($"-c:v h264_nvenc -preset {nvencPreset} -rc vbr -cq {cq} -pix_fmt yuv420p ");
+        sb.Append("-colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv -movflags +faststart ");
         sb.Append($"\"{output}\"");
 
         var psi = new ProcessStartInfo

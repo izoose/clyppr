@@ -8,6 +8,13 @@ public sealed class AppSettings
     public string ClipsDirectory { get; set; } = AppPaths.DefaultClipsDir;
     /// <summary>Process name (no ".exe") whose audio goes on its own "Voice" track and is cut from "Desktop".</summary>
     public string VoiceApp { get; set; } = "Discord";
+    public bool MicEnabled { get; set; } = true;
+    /// <summary>Specific microphone endpoint id, or null for the Windows default.</summary>
+    public string? MicDeviceId { get; set; }
+    /// <summary>Play a chime when a clip is saved.</summary>
+    public bool ClipSoundEnabled { get; set; } = true;
+    /// <summary>Clip chime volume, 0..1 (soft by default).</summary>
+    public double ClipSoundVolume { get; set; } = 0.3;
     public int Fps { get; set; } = 60;
     /// <summary>NVENC constant-quality (lower = better/bigger). 19-23 typical.</summary>
     public int Cq { get; set; } = 21;
@@ -27,8 +34,8 @@ public sealed class AppSettings
     public int FacecamWidth { get; set; } = 320;
     public string FacecamCorner { get; set; } = "BottomRight";
 
-    // Sharing (M5)
-    public string? ShareEndpoint { get; set; }
+    // Sharing (M5) — default to the Clyppr domain; add the token after deploying the server.
+    public string? ShareEndpoint { get; set; } = "https://clyppr.com";
     public string? ShareToken { get; set; }
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };

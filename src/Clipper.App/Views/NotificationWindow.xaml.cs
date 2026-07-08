@@ -14,9 +14,9 @@ public partial class NotificationWindow : Window
 
         Loaded += (_, _) =>
         {
-            // Top-right of the work area (like Medal's in-game toast).
+            // Top-left of the work area (like Medal's in-game toast).
             var wa = SystemParameters.WorkArea;
-            Left = wa.Right - ActualWidth;
+            Left = wa.Left + 8;
             Top = wa.Top + 8;
 
             BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));

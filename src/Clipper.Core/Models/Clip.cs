@@ -1,7 +1,10 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
 namespace Clipper.Core;
 
 /// <summary>A recorded/imported clip and its metadata (one row in the library DB).</summary>
-public sealed class Clip
+public sealed class Clip : INotifyPropertyChanged
 {
     public long Id { get; set; }
     public string FilePath { get; set; } = "";
@@ -21,6 +24,8 @@ public sealed class Clip
     public string Tracks { get; set; } = "";
     /// <summary>Comma-separated free-form tags.</summary>
     public string Tags { get; set; } = "";
+    /// <summary>Detected player usernames (comma-separated). null = not scanned yet; "" = scanned, none.</summary>
+    public string? Players { get; set; }
 
     public IReadOnlyList<string> TrackList =>
         Tracks.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -52,4 +57,17 @@ public sealed class Clip
     }
 
     private static string Plural(int n) => n == 1 ? "" : "s";
+
+    // ---- transient UI state (not persisted) ----
+    private bool _isSelected;
+    /// <summary>Whether this clip is ticked in a multi-select. Runtime only, never saved.</summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set { if (_isSelected != value) { _isSelected = value; OnPropertyChanged(); } }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

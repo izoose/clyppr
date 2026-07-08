@@ -16,6 +16,9 @@ public partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty] private string _clipsDirectory;
     [ObservableProperty] private string _voiceApp;
+    [ObservableProperty] private bool _micEnabled;
+    [ObservableProperty] private bool _clipSoundEnabled;
+    [ObservableProperty] private double _clipSoundVolume;
     [ObservableProperty] private int _fps;
     [ObservableProperty] private int _cq;
     [ObservableProperty] private int _bufferSeconds;
@@ -34,9 +37,11 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string? _facecamDevice;
     [ObservableProperty] private int _facecamWidth;
     [ObservableProperty] private string _facecamCorner;
+    [ObservableProperty] private MicDeviceItem? _selectedMicDevice;
 
     public ObservableCollection<string> Cameras { get; } = new();
     public string[] Corners { get; } = { "BottomRight", "BottomLeft", "TopRight", "TopLeft" };
+    public List<MicDeviceItem> MicDeviceOptions { get; } = MicDevices.List();
 
     public SettingsViewModel(AppSettings settings, RecordingService recording, Action onSaved)
     {
@@ -46,6 +51,10 @@ public partial class SettingsViewModel : ObservableObject
 
         _clipsDirectory = settings.ClipsDirectory;
         _voiceApp = settings.VoiceApp;
+        _micEnabled = settings.MicEnabled;
+        _selectedMicDevice = MicDeviceOptions.FirstOrDefault(d => d.Id == settings.MicDeviceId) ?? MicDeviceOptions[0];
+        _clipSoundEnabled = settings.ClipSoundEnabled;
+        _clipSoundVolume = settings.ClipSoundVolume;
         _fps = settings.Fps;
         _cq = settings.Cq;
         _bufferSeconds = settings.BufferSeconds;
@@ -75,6 +84,9 @@ public partial class SettingsViewModel : ObservableObject
     private void SelectSection(string section) => Section = section;
 
     [RelayCommand]
+    private void TestSound() => Sounds.PlayClip((float)Math.Clamp(ClipSoundVolume, 0, 1));
+
+    [RelayCommand]
     private void BrowseClipsDir()
     {
         var dlg = new OpenFolderDialog { Title = "Choose clips folder", InitialDirectory = ClipsDirectory };
@@ -86,6 +98,10 @@ public partial class SettingsViewModel : ObservableObject
     {
         _settings.ClipsDirectory = ClipsDirectory;
         _settings.VoiceApp = VoiceApp;
+        _settings.MicEnabled = MicEnabled;
+        _settings.MicDeviceId = SelectedMicDevice?.Id;
+        _settings.ClipSoundEnabled = ClipSoundEnabled;
+        _settings.ClipSoundVolume = Math.Clamp(ClipSoundVolume, 0, 1);
         _settings.Fps = Math.Clamp(Fps, 24, 240);
         _settings.Cq = Math.Clamp(Cq, 10, 40);
         _settings.BufferSeconds = Math.Clamp(BufferSeconds, 15, 1200);

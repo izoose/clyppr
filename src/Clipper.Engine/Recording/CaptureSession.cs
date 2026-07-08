@@ -63,7 +63,9 @@ sealed class CaptureSession : IDisposable
 
     private ICapture StartVideo()
     {
-        try { var wgc = new WgcCapture(); wgc.Start(); return wgc; }
+        // GPU NV12 conversion only when there's no facecam overlay (that path composites in BGRA).
+        bool wantNv12 = !(_cfg.FacecamEnabled && !string.IsNullOrWhiteSpace(_cfg.FacecamDevice));
+        try { var wgc = new WgcCapture(preferNv12: wantNv12, fps: _cfg.Fps); wgc.Start(); return wgc; }
         catch { var dxgi = new DxgiCapture(); dxgi.Start(); return dxgi; }
     }
 
@@ -88,7 +90,7 @@ sealed class CaptureSession : IDisposable
                     else pid = (uint)proc.Id;
                 }
             }
-            var cap = new AudioCapture(kind, pid);
+            var cap = new AudioCapture(kind, pid, t.DeviceId);
             var pipe = NewPipe($"clipper_a{i}_{id}", 4 * 1024 * 1024);
             _audio.Add((t, cap, pipe));
             i++;
@@ -106,9 +108,11 @@ sealed class CaptureSession : IDisposable
 
     private Process LaunchFfmpeg(int w, int h, string vPipeName, string id, string sinkArgs, string extraEncoderArgs)
     {
+        bool nv12 = _video?.Format == CaptureFormat.Nv12;
+
         var sb = new StringBuilder();
         sb.Append("-y -hide_banner -loglevel warning ");
-        sb.Append($"-f rawvideo -pixel_format bgra -video_size {w}x{h} -framerate {_cfg.Fps} -i \\\\.\\pipe\\{vPipeName} ");
+        sb.Append($"-f rawvideo -pixel_format {(nv12 ? "nv12" : "bgra")} -video_size {w}x{h} -framerate {_cfg.Fps} -i \\\\.\\pipe\\{vPipeName} ");
         for (int i = 0; i < _audio.Count; i++)
             sb.Append($"-f s16le -ar {AudioCapture.Format.SampleRate} -ac {AudioCapture.Format.Channels} -i \\\\.\\pipe\\clipper_a{i}_{id} ");
 
@@ -126,11 +130,18 @@ sealed class CaptureSession : IDisposable
                 "TopLeft" => "20:20",
                 _ => "W-w-20:H-h-20",
             };
-            sb.Append($"-filter_complex \"[{cam}:v]scale={_cfg.FacecamWidth}:-1,setsar=1[cam];[0:v][cam]overlay={pos}[vout]\" -map \"[vout]\" ");
+            sb.Append($"-filter_complex \"[{cam}:v]scale={_cfg.FacecamWidth}:-1,setsar=1[cam];[0:v][cam]overlay={pos},scale=in_range=full:out_range=tv[vout]\" -map \"[vout]\" ");
         }
-        else sb.Append("-map 0:v ");
+        // NV12 frames are already BT.709 limited-range (converted on the GPU) → no CPU scale needed.
+        else if (nv12) sb.Append("-map 0:v ");
+        else sb.Append("-map 0:v -vf \"scale=in_range=full:out_range=tv\" ");
         for (int i = 0; i < _audio.Count; i++) sb.Append($"-map {i + 1}:a ");
-        sb.Append($"-c:v h264_nvenc -preset {_cfg.NvencPreset} -rc vbr -cq {_cfg.Cq} -pix_fmt yuv420p -g {_cfg.Fps} ");
+        // Force constant frame rate so playback is smooth (capture frames arrive irregularly → bogus
+        // r_frame_rate 300 that players judder on), and tag BT.709 limited-range so colors aren't
+        // washed out (desktop capture is full-range RGB; untagged YUV gets mis-interpreted).
+        string pixFmt = nv12 ? "" : "-pix_fmt yuv420p ";
+        sb.Append($"-c:v h264_nvenc -preset {_cfg.NvencPreset} -rc vbr -cq {_cfg.Cq} {pixFmt}-g {_cfg.Fps} -r {_cfg.Fps} -vsync cfr ");
+        sb.Append("-colorspace bt709 -color_primaries bt709 -color_trc bt709 -color_range tv ");
         if (!string.IsNullOrWhiteSpace(extraEncoderArgs)) sb.Append(extraEncoderArgs).Append(' ');
         sb.Append("-c:a aac -b:a 160k ");
         // MP4/TS keep handler_name; the app DB holds the authoritative track map.

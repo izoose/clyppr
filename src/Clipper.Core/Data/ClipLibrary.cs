@@ -40,7 +40,8 @@ public sealed class ClipLibrary
                 AlbumId       INTEGER,
                 IsFavorite    INTEGER NOT NULL DEFAULT 0,
                 Tracks        TEXT NOT NULL DEFAULT '',
-                Tags          TEXT NOT NULL DEFAULT ''
+                Tags          TEXT NOT NULL DEFAULT '',
+                Players       TEXT
             );
             CREATE TABLE IF NOT EXISTS albums (
                 Id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +52,7 @@ public sealed class ClipLibrary
         cmd.ExecuteNonQuery();
 
         // Migrate older DBs that predate newer columns.
-        foreach (var col in new[] { "AlbumId INTEGER", "IsFavorite INTEGER NOT NULL DEFAULT 0" })
+        foreach (var col in new[] { "AlbumId INTEGER", "IsFavorite INTEGER NOT NULL DEFAULT 0", "Players TEXT" })
         {
             try
             {
@@ -156,13 +157,15 @@ public sealed class ClipLibrary
     public List<Clip> Search(string query, long? albumId = null)
         => Query(query, albumId, false);
 
-    /// <summary>Combined filter: text search + album + favorites-only.</summary>
-    public List<Clip> Query(string? search, long? albumId, bool favoritesOnly)
+    /// <summary>Combined filter: text search + album + favorites-only + game + detected player.</summary>
+    public List<Clip> Query(string? search, long? albumId, bool favoritesOnly, string? game = null, string? player = null)
     {
         var where = new List<string>();
-        if (!string.IsNullOrWhiteSpace(search)) where.Add("(Title LIKE $q OR Game LIKE $q OR Tags LIKE $q)");
+        if (!string.IsNullOrWhiteSpace(search)) where.Add("(Title LIKE $q OR Game LIKE $q OR Tags LIKE $q OR Players LIKE $q)");
         if (albumId is not null) where.Add("AlbumId=$a");
         if (favoritesOnly) where.Add("IsFavorite=1");
+        if (!string.IsNullOrWhiteSpace(game)) where.Add("Game=$g COLLATE NOCASE");
+        if (!string.IsNullOrWhiteSpace(player)) where.Add("Players LIKE $pl");
 
         using var c = Open();
         using var cmd = c.CreateCommand();
@@ -171,7 +174,22 @@ public sealed class ClipLibrary
             + " ORDER BY datetime(CreatedAt) DESC;";
         if (!string.IsNullOrWhiteSpace(search)) cmd.Parameters.AddWithValue("$q", $"%{search}%");
         if (albumId is not null) cmd.Parameters.AddWithValue("$a", albumId);
+        if (!string.IsNullOrWhiteSpace(game)) cmd.Parameters.AddWithValue("$g", game);
+        if (!string.IsNullOrWhiteSpace(player)) cmd.Parameters.AddWithValue("$pl", $"%{player}%");
         return ReadAll(cmd);
+    }
+
+    /// <summary>Distinct games in the library (most clips first), for the game filter chips.</summary>
+    public List<(string Game, int Count)> GetGames()
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "SELECT Game, COUNT(*) FROM clips WHERE Game IS NOT NULL AND TRIM(Game) <> '' "
+            + "GROUP BY Game COLLATE NOCASE ORDER BY COUNT(*) DESC, Game COLLATE NOCASE;";
+        var list = new List<(string, int)>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) list.Add((r.GetString(0), (int)r.GetInt64(1)));
+        return list;
     }
 
     public void Update(Clip clip)
@@ -237,8 +255,20 @@ public sealed class ClipLibrary
                 IsFavorite = r["IsFavorite"] is long fav && fav != 0,
                 Tracks = r.GetString(r.GetOrdinal("Tracks")),
                 Tags = r.GetString(r.GetOrdinal("Tags")),
+                Players = r["Players"] as string,
             });
         }
         return list;
+    }
+
+    /// <summary>Stores detected player usernames (comma-separated; "" means scanned, none found).</summary>
+    public void SetPlayers(long clipId, string players)
+    {
+        using var c = Open();
+        using var cmd = c.CreateCommand();
+        cmd.CommandText = "UPDATE clips SET Players=$p WHERE Id=$id;";
+        cmd.Parameters.AddWithValue("$p", players);
+        cmd.Parameters.AddWithValue("$id", clipId);
+        cmd.ExecuteNonQuery();
     }
 }

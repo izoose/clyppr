@@ -111,11 +111,33 @@ public partial class MainWindow : Window
         menu.Items.Add(mi);
     }
 
-    // Clicking a clip's thumbnail opens it in the Medal-style viewer.
+    // Clicking a clip's thumbnail opens the viewer — or toggles its tick in multi-select mode.
     private void Thumb_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: Clip clip } && DataContext is MainViewModel vm)
-            vm.OpenViewerCommand.Execute(clip);
+        if (sender is not FrameworkElement { DataContext: Clip clip } || DataContext is not MainViewModel vm) return;
+        if (vm.SelectionMode)
+        {
+            clip.IsSelected = !clip.IsSelected;
+            vm.RefreshSelectionCount();
+        }
+        else vm.OpenViewerCommand.Execute(clip);
+    }
+
+    // "Add to album" in the multi-select action bar → pick an album.
+    private void SelectionAlbum_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || DataContext is not MainViewModel vm) return;
+        var menu = new ContextMenu { PlacementTarget = btn };
+        foreach (var album in vm.Albums)
+        {
+            var a = album;
+            var mi = new MenuItem { Header = a.Name };
+            mi.Click += (_, _) => vm.AddSelectedToAlbumCommand.Execute(a);
+            menu.Items.Add(mi);
+        }
+        if (vm.Albums.Count == 0)
+            menu.Items.Add(new MenuItem { Header = "No albums yet", IsEnabled = false });
+        menu.IsOpen = true;
     }
 
     // ---- hover-to-preview ----

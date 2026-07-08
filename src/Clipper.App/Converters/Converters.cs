@@ -23,10 +23,15 @@ public sealed class BoolTextConverter : IValueConverter
 /// <summary>int count == 0 → Visible, else Collapsed (for empty-state UI).</summary>
 public sealed class CountToVisibilityConverter : IValueConverter
 {
-    public static readonly CountToVisibilityConverter ZeroVisible = new();
+    public static readonly CountToVisibilityConverter ZeroVisible = new() { _whenZero = true };
+    public static readonly CountToVisibilityConverter NonZeroVisible = new() { _whenZero = false };
+    private bool _whenZero = true;
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => (value is int i && i == 0) ? Visibility.Visible : Visibility.Collapsed;
+    {
+        bool zero = value is int i && i == 0;
+        return zero == _whenZero ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();

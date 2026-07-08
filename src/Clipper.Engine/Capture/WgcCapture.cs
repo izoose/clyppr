@@ -12,15 +12,23 @@ using D3D11Format = Vortice.DXGI.Format;
 namespace Clipper.Engine;
 
 /// <summary>
-/// Windows Graphics Capture of the primary monitor. Reads each frame back to CPU and
-/// raises FrameBgra with a tightly-packed BGRA buffer (row padding removed).
-/// Throwaway spike code — no abstraction, no error recovery.
+/// Windows Graphics Capture of the primary monitor. Delivers each frame via FrameBgra.
+/// When <c>preferNv12</c> is requested (and the GPU supports it), frames are converted to NV12
+/// on the GPU (see <see cref="Nv12Converter"/>) — halving the pipe bandwidth and removing ffmpeg's
+/// CPU colour conversion; otherwise a plain BGRA readback is used. <see cref="Format"/> reflects
+/// which one is active (decided during Start, before frames flow, so the recorder can configure ffmpeg).
 /// </summary>
 sealed class WgcCapture : ICapture
 {
     public int Width { get; private set; }
     public int Height { get; private set; }
+    public CaptureFormat Format { get; private set; } = CaptureFormat.Bgra;
     public event Action<byte[]>? FrameBgra;
+
+    private readonly int _fps;
+    private bool _preferNv12;
+    private Nv12Converter? _nv12Conv;
+    private int _nv12W, _nv12H;
 
     private ID3D11Device _device = null!;
     private ID3D11DeviceContext _context = null!;
@@ -28,6 +36,12 @@ sealed class WgcCapture : ICapture
     private Direct3D11CaptureFramePool _framePool = null!;
     private GraphicsCaptureSession _session = null!;
     private GraphicsCaptureItem _item = null!;
+
+    public WgcCapture(bool preferNv12 = false, int fps = 60)
+    {
+        _preferNv12 = preferNv12;
+        _fps = fps;
+    }
 
     public void Start()
     {
@@ -53,6 +67,9 @@ sealed class WgcCapture : ICapture
         Width = size.Width;
         Height = size.Height;
 
+        // Decide the output format up front so the recorder configures ffmpeg correctly.
+        if (_preferNv12) EnsureNv12(Width, Height);
+
         // 4. Free-threaded frame pool → FrameArrived on a threadpool thread (no dispatcher needed).
         _framePool = Direct3D11CaptureFramePool.CreateFreeThreaded(
             winrtDevice, DirectXPixelFormat.B8G8R8A8UIntNormalized, 2, size);
@@ -63,6 +80,34 @@ sealed class WgcCapture : ICapture
         _session.StartCapture();
     }
 
+    /// <summary>Creates (or resizes) the GPU NV12 converter; falls back to BGRA on any failure.</summary>
+    private void EnsureNv12(int w, int h)
+    {
+        if (!_preferNv12) return;
+        if (w % 2 != 0 || h % 2 != 0) { DisableNv12(); return; } // NV12 needs even dimensions
+        if (_nv12Conv is not null && _nv12W == w && _nv12H == h) return;
+        try
+        {
+            _nv12Conv?.Dispose();
+            _nv12Conv = new Nv12Converter(_device, _context, w, h, _fps);
+            _nv12W = w; _nv12H = h;
+            Width = w; Height = h;
+            Format = CaptureFormat.Nv12;
+        }
+        catch
+        {
+            DisableNv12();
+        }
+    }
+
+    private void DisableNv12()
+    {
+        _nv12Conv?.Dispose();
+        _nv12Conv = null;
+        _preferNv12 = false;
+        Format = CaptureFormat.Bgra;
+    }
+
     private void OnFrameArrived(Direct3D11CaptureFramePool pool, object args)
     {
         using Direct3D11CaptureFrame? frame = pool.TryGetNextFrame();
@@ -71,6 +116,25 @@ sealed class WgcCapture : ICapture
         using ID3D11Texture2D srcTex = GetTexture(frame.Surface);
         Texture2DDescription desc = srcTex.Description;
 
+        // GPU NV12 path.
+        if (_preferNv12)
+        {
+            EnsureNv12((int)desc.Width, (int)desc.Height);
+            if (_nv12Conv is not null)
+            {
+                try
+                {
+                    FrameBgra?.Invoke(_nv12Conv.Convert(srcTex));
+                    return;
+                }
+                catch
+                {
+                    DisableNv12(); // fall through to BGRA
+                }
+            }
+        }
+
+        // BGRA readback path.
         if (_staging is null || _staging.Description.Width != desc.Width || _staging.Description.Height != desc.Height)
         {
             _staging?.Dispose();
@@ -124,6 +188,7 @@ sealed class WgcCapture : ICapture
     public void Dispose()
     {
         Stop();
+        _nv12Conv?.Dispose();
         _staging?.Dispose();
         _context?.Dispose();
         _device?.Dispose();

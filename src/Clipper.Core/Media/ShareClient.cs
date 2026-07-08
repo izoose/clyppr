@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Clipper.Core;
 
-/// <summary>Uploads a clip to the Clipper share server and returns its public watch URL.</summary>
+/// <summary>Uploads a clip to the Clyppr share server and returns its public watch URL.</summary>
 public static class ShareClient
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(15) };

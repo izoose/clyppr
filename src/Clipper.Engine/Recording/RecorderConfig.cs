@@ -9,6 +9,8 @@ public sealed class AudioTrackConfig
     public string? ProcessName { get; init; }
     /// <summary>Exact process id to capture (preferred over ProcessName when set).</summary>
     public uint? Pid { get; init; }
+    /// <summary>Specific capture endpoint id for a Mic track; null = system default.</summary>
+    public string? DeviceId { get; init; }
 }
 
 public sealed class RecorderConfig

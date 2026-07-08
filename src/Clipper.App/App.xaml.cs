@@ -23,6 +23,9 @@ public partial class App : Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;   // tray keeps the app alive when the window closes
 
+        // A stray error (e.g. tearing down a video window) must never take the whole app down.
+        DispatcherUnhandledException += (_, ex) => { ex.Handled = true; };
+
         Settings = AppSettings.Load();
         Directory.CreateDirectory(Settings.ClipsDirectory);
         Library = new ClipLibrary();
@@ -58,7 +61,7 @@ public partial class App : Application
         if (!_balloonShown)
         {
             _balloonShown = true;
-            _tray?.ShowBalloon("Clipper is still running", "Buffering in the background. Press your clip hotkey any time.");
+            _tray?.ShowBalloon("Clyppr is still running", "Buffering in the background. Press your clip hotkey any time.");
         }
     }
 

@@ -1,6 +1,8 @@
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Threading;
+using System.Windows.Media;
 
 namespace Clipper.App;
 
@@ -13,11 +15,16 @@ public partial class EditorWindow : Window
     private static readonly string MaxGlyph = ((char)0xE922).ToString();
     private static readonly string RestoreGlyph = ((char)0xE923).ToString();
 
+    private enum Drag { None, In, Out, Scrub }
+
     private readonly EditorViewModel _vm;
-    private readonly DispatcherTimer _timer;
-    private bool _timerUpdate;
     private bool _playing;
-    private bool _muted = true;
+    private bool _muted;                 // preview audio starts ON so volume changes are audible
+    private double _duration;
+    private Drag _drag = Drag.None;
+
+    private PreviewMixer? _mixer;
+    private bool _mixerFailed;   // true if per-track extraction failed → use the file's own audio
 
     private double _zoom = 1.0;
     private bool _panning;
@@ -28,14 +35,12 @@ public partial class EditorWindow : Window
         InitializeComponent();
         DataContext = _vm = vm;
 
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
-        _timer.Tick += OnTick;
-
         Loaded += OnLoaded;
         Closed += OnClosed;
         StateChanged += (_, _) => MaxBtn.Content = WindowState == WindowState.Maximized ? RestoreGlyph : MaxGlyph;
         Player.MediaOpened += OnMediaOpened;
-        Player.MediaEnded += (_, _) => { Player.Pause(); _playing = false; UpdatePlayIcon(); };
+        Player.MediaEnded += (_, _) => StopPlayback();
+        CompositionTarget.Rendering += OnRendering;
     }
 
     // ---- window ----
@@ -43,44 +48,110 @@ public partial class EditorWindow : Window
     private void Max_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
-    private void OnLoaded(object? sender, RoutedEventArgs e)
+    private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
         Player.Source = new Uri(_vm.FilePath);
-        Player.Volume = 0;
+        Player.Volume = 0;              // video is muted; PreviewMixer owns all audible sound
         Player.Play();
         Player.Pause();
-        _timer.Start();
+
+        MuteBtn.Content = VolumeGlyph;
+
+        // Build the real-time per-track mixer, then apply the current slider values.
+        _mixer = await PreviewMixer.CreateAsync(_vm.FilePath, _vm.Tracks.Count);
+        foreach (var t in _vm.Tracks)
+        {
+            ApplyTrack(t);
+            t.PropertyChanged += Track_PropertyChanged;
+        }
+
+        if (_mixer is null)
+        {
+            // Couldn't split the tracks (e.g. an already-flattened clip) — play the file's own audio
+            // so preview is never silent. Per-track volume just won't apply for this clip.
+            _mixerFailed = true;
+            Player.Volume = _muted ? 0 : 1.0;
+        }
+        else if (_playing && !_muted)
+        {
+            _mixer.Seek(Player.Position);
+            _mixer.Play();
+        }
     }
+
+    private void Track_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is TrackRowViewModel t && (e.PropertyName is nameof(TrackRowViewModel.Volume) or nameof(TrackRowViewModel.Keep)))
+            ApplyTrack(t);
+    }
+
+    private void ApplyTrack(TrackRowViewModel t) => _mixer?.SetVolume(t.Index, t.Keep ? t.Volume : 0);
 
     private void OnMediaOpened(object? sender, RoutedEventArgs e)
     {
         if (Player.NaturalDuration.HasTimeSpan)
         {
-            double d = Player.NaturalDuration.TimeSpan.TotalSeconds;
-            PosSlider.Maximum = d;
-            _vm.SetDuration(d);
+            _duration = Player.NaturalDuration.TimeSpan.TotalSeconds;
+            _vm.SetDuration(_duration);
         }
     }
 
-    private void OnTick(object? sender, EventArgs e)
+    // ---- smooth playhead (frame-synced instead of a coarse timer) ----
+    private void OnRendering(object? sender, EventArgs e)
     {
-        if (!Player.NaturalDuration.HasTimeSpan) return;
-        _timerUpdate = true;
-        PosSlider.Value = Player.Position.TotalSeconds;
-        _timerUpdate = false;
-        TimeText.Text = $"{Fmt(Player.Position.TotalSeconds)} / {Fmt(PosSlider.Maximum)}";
+        if (_duration <= 0) return;
+        double pos = Player.Position.TotalSeconds;
+        TimeText.Text = $"{Fmt(pos)} / {Fmt(_duration)}";
+        LayoutTimeline(pos);
     }
 
-    private void PosSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void LayoutTimeline(double pos)
     {
-        if (_timerUpdate) return;
-        Player.Position = TimeSpan.FromSeconds(e.NewValue);
+        double w = Timeline.ActualWidth;
+        if (w <= 0 || _duration <= 0) return;
+
+        double inX = _vm.InSeconds / _duration * w;
+        double outX = _vm.OutSeconds / _duration * w;
+        double posX = Math.Clamp(pos / _duration * w, 0, w);
+
+        TrackBg.Width = w;
+        Canvas.SetLeft(SelRegion, inX);
+        SelRegion.Width = Math.Max(0, outX - inX);
+
+        double playEnd = Math.Clamp(posX, inX, outX);
+        Canvas.SetLeft(PlayedRegion, inX);
+        PlayedRegion.Width = Math.Max(0, playEnd - inX);
+
+        Canvas.SetLeft(InHandle, inX - InHandle.Width / 2);
+        Canvas.SetLeft(OutHandle, outX - OutHandle.Width / 2);
+        Canvas.SetLeft(Playhead, posX - Playhead.Width / 2);
     }
 
+    private void Timeline_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutTimeline(Player.Position.TotalSeconds);
+
+    // ---- transport ----
     private void PlayPause_Click(object sender, RoutedEventArgs e)
     {
         _playing = !_playing;
-        if (_playing) Player.Play(); else Player.Pause();
+        if (_playing)
+        {
+            _mixer?.Seek(Player.Position);
+            Player.Play();
+            if (!_muted) _mixer?.Play();
+        }
+        else
+        {
+            Player.Pause();
+            _mixer?.Pause();
+        }
+        UpdatePlayIcon();
+    }
+
+    private void StopPlayback()
+    {
+        Player.Pause();
+        _mixer?.Pause();
+        _playing = false;
         UpdatePlayIcon();
     }
 
@@ -89,12 +160,71 @@ public partial class EditorWindow : Window
     private void Mute_Click(object sender, RoutedEventArgs e)
     {
         _muted = !_muted;
-        Player.Volume = _muted ? 0 : 1.0;
         MuteBtn.Content = _muted ? MuteGlyph : VolumeGlyph;
+        if (_mixerFailed) Player.Volume = _muted ? 0 : 1.0;
+        _mixer?.SetMasterVolume(_muted ? 0f : 1f);
+        if (!_muted && _playing) _mixer?.Play();
     }
 
-    private void SetIn_Click(object sender, RoutedEventArgs e) => _vm.SetIn(Player.Position.TotalSeconds);
-    private void SetOut_Click(object sender, RoutedEventArgs e) => _vm.SetOut(Player.Position.TotalSeconds);
+    // ---- timeline drag: trim handles + scrub ----
+    private const double GrabPx = 11;
+
+    private void Timeline_Down(object sender, MouseButtonEventArgs e)
+    {
+        if (_duration <= 0) return;
+        double w = Timeline.ActualWidth;
+        double x = e.GetPosition(Timeline).X;
+        double inX = _vm.InSeconds / _duration * w;
+        double outX = _vm.OutSeconds / _duration * w;
+
+        if (Math.Abs(x - inX) <= GrabPx) _drag = Drag.In;
+        else if (Math.Abs(x - outX) <= GrabPx) _drag = Drag.Out;
+        else { _drag = Drag.Scrub; SeekToX(x); }
+
+        Timeline.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void Timeline_Move(object sender, MouseEventArgs e)
+    {
+        if (_drag == Drag.None || _duration <= 0) return;
+        double w = Timeline.ActualWidth;
+        double time = Math.Clamp(e.GetPosition(Timeline).X / w, 0, 1) * _duration;
+
+        switch (_drag)
+        {
+            case Drag.In:
+                _vm.SetIn(time);
+                SeekPreview(_vm.InSeconds);
+                break;
+            case Drag.Out:
+                _vm.SetOut(time);
+                SeekPreview(_vm.OutSeconds);
+                break;
+            case Drag.Scrub:
+                SeekToX(e.GetPosition(Timeline).X);
+                break;
+        }
+    }
+
+    private void Timeline_Up(object sender, MouseButtonEventArgs e)
+    {
+        _drag = Drag.None;
+        Timeline.ReleaseMouseCapture();
+    }
+
+    private void SeekToX(double x)
+    {
+        double w = Timeline.ActualWidth;
+        SeekPreview(Math.Clamp(x / w, 0, 1) * _duration);
+    }
+
+    private void SeekPreview(double seconds)
+    {
+        var t = TimeSpan.FromSeconds(Math.Clamp(seconds, 0, _duration));
+        Player.Position = t;
+        _mixer?.Seek(t);
+    }
 
     // ---- zoom & pan ----
     private void SetZoom(double z)
@@ -108,7 +238,6 @@ public partial class EditorWindow : Window
     private void ZoomIn_Click(object sender, RoutedEventArgs e) => SetZoom(_zoom * 1.25);
     private void ZoomOut_Click(object sender, RoutedEventArgs e) => SetZoom(_zoom / 1.25);
     private void ZoomReset_Click(object sender, RoutedEventArgs e) => SetZoom(1.0);
-
     private void Preview_Wheel(object sender, MouseWheelEventArgs e) => SetZoom(e.Delta > 0 ? _zoom * 1.15 : _zoom / 1.15);
 
     private void Preview_Down(object sender, MouseButtonEventArgs e)
@@ -136,9 +265,11 @@ public partial class EditorWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
-        _timer.Stop();
+        CompositionTarget.Rendering -= OnRendering;
+        foreach (var t in _vm.Tracks) t.PropertyChanged -= Track_PropertyChanged;
         try { Player.Stop(); Player.Close(); } catch { }
+        _mixer?.Dispose();
     }
 
-    private static string Fmt(double s) => TimeSpan.FromSeconds(s).ToString(@"m\:ss");
+    private static string Fmt(double s) => TimeSpan.FromSeconds(Math.Max(0, s)).ToString(@"m\:ss");
 }

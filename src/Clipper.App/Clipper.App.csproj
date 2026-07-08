@@ -11,15 +11,28 @@
     <PlatformTarget>x64</PlatformTarget>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\clipper.ico</ApplicationIcon>
+
+    <!-- Ship as "Clyppr.exe" (namespaces stay Clipper.* internally). -->
+    <AssemblyName>Clyppr</AssemblyName>
+    <Product>Clyppr</Product>
+    <AssemblyTitle>Clyppr</AssemblyTitle>
+    <Company>Clyppr</Company>
+    <Description>Clip the game. Cut the Discord. Self-hosted game clips with per-app audio.</Description>
+    <Copyright>Copyright © 2026</Copyright>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Assets\clipper.png" />
     <Resource Include="Assets\clipper.ico" />
+    <Resource Include="Assets\clip.wav" />
     <Resource Include="Assets\Fonts\*.ttf" />
   </ItemGroup>
 

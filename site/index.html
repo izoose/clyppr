@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clyppr — Clip the game. Cut the Discord.</title>
+<meta name="description" content="Clyppr records every app's audio on its own track, so your clips keep the game and drop the voice chat. Always-on replay buffer, a real editor, and drag-to-Discord sharing. Your clips never leave your PC.">
+<meta property="og:title" content="Clyppr — Clip the game. Cut the Discord.">
+<meta property="og:description" content="Self-hosted game clips with per-app audio separation. Record the game, not the Discord call.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://clyppr.com/">
+<meta property="og:image" content="https://clyppr.com/img/app-home.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Clyppr — Clip the game. Cut the Discord.">
+<meta name="twitter:description" content="Self-hosted game clips with per-app audio separation. Record the game, not the Discord call.">
+<meta name="twitter:image" content="https://clyppr.com/img/app-home.png">
+<link rel="canonical" href="https://clyppr.com/">
+<link rel="icon" href="img/clyppr-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0B0D; --bg2:#0E0E11; --panel:#141417; --panel2:#191920;
+    --line:#26262B; --line2:#33333A;
+    --text:#ECECEF; --dim:#9A9AA4; --faint:#63636D;
+    --gold:#FFC93C; --gold-ink:#1A1400; --gold-soft:#FFDE85;
+    --game:#FFC93C; --discord:#5865F2; --mic:#E5534B; --good:#41B37F;
+    --r:14px;
+    --maxw:1180px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Inter",system-ui,Segoe UI,sans-serif; line-height:1.55;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  a{color:inherit; text-decoration:none}
+  h1,h2,h3{font-family:"Space Grotesk",sans-serif; font-weight:700; letter-spacing:-.02em; line-height:1.04; margin:0}
+  .mono{font-family:"Space Mono",monospace}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+  .accent{color:var(--gold)}
+
+  /* ambient glow field */
+  .glowfield{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden}
+  .glowfield i{position:absolute; border-radius:50%; filter:blur(90px); opacity:.5}
+  .g1{width:520px;height:520px; background:radial-gradient(circle,#FFC93C33,transparent 70%); top:-160px; left:-120px}
+  .g2{width:600px;height:600px; background:radial-gradient(circle,#5865F229,transparent 70%); top:340px; right:-220px}
+  .g3{width:460px;height:460px; background:radial-gradient(circle,#FFC93C1f,transparent 70%); bottom:-160px; left:30%}
+
+  /* ---- nav ---- */
+  header{position:sticky; top:0; z-index:50; backdrop-filter:blur(14px); background:#0B0B0Dcc; border-bottom:1px solid #ffffff0d}
+  nav{display:flex; align-items:center; gap:14px; height:64px}
+  .brand{display:flex; align-items:center; gap:10px; font-family:"Space Grotesk"; font-weight:700; font-size:19px; letter-spacing:-.01em}
+  .brand img{width:26px; height:26px; border-radius:7px}
+  .navlinks{display:flex; gap:6px; margin-left:auto}
+  .navlinks a{padding:8px 14px; border-radius:9px; color:var(--dim); font-size:14px; font-weight:500; transition:.15s}
+  .navlinks a:hover{color:var(--text); background:#ffffff0d}
+  .btn{display:inline-flex; align-items:center; gap:9px; font-weight:600; border-radius:11px; cursor:pointer; border:0; transition:transform .12s, box-shadow .2s, background .2s; font-family:"Inter"}
+  .btn-gold{background:var(--gold); color:var(--gold-ink); padding:11px 20px; font-size:15px; box-shadow:0 0 0 rgba(255,201,60,0)}
+  .btn-gold:hover{box-shadow:0 8px 30px #FFC93C55; transform:translateY(-1px)}
+  .btn-gold:active{transform:translateY(0) scale(.98)}
+  .btn-ghost{background:#ffffff0f; color:var(--text); padding:11px 18px; font-size:15px; border:1px solid var(--line2)}
+  .btn-ghost:hover{background:#ffffff18}
+  .nav-dl{padding:9px 16px; font-size:14px}
+
+  /* ---- hero ---- */
+  .hero{position:relative; z-index:1; padding:70px 0 40px}
+  .hero-grid{display:grid; grid-template-columns:1.05fr .95fr; gap:56px; align-items:center}
+  .eyebrow{display:inline-flex; align-items:center; gap:9px; font-family:"Space Mono"; font-size:12.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--gold); background:#FFC93C14; border:1px solid #FFC93C33; padding:6px 12px; border-radius:100px; margin-bottom:22px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%; background:var(--gold); box-shadow:0 0 10px var(--gold)}
+  h1.title{font-size:clamp(40px,6vw,68px); font-weight:700}
+  h1.title .line2{color:var(--dim)}
+  .sub{color:var(--dim); font-size:18px; max-width:520px; margin:22px 0 30px}
+  .sub b{color:var(--text); font-weight:600}
+  .cta{display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+  .trust{display:flex; gap:18px; margin-top:22px; color:var(--faint); font-size:13px; flex-wrap:wrap}
+  .trust span{display:flex; align-items:center; gap:7px}
+  .trust svg{width:15px;height:15px; stroke:var(--good)}
+  kbd{font-family:"Space Mono"; font-size:12px; background:#2A2A34; border:1px solid #ffffff1a; border-bottom-width:2px; border-radius:6px; padding:2px 7px; color:#D9D9E2}
+
+  /* ---- signature: audio mixer ---- */
+  .mixer{position:relative; background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--line); border-radius:18px; padding:20px; box-shadow:0 30px 80px #00000066, inset 0 1px 0 #ffffff0a}
+  .mixer-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px}
+  .mixer-title{font-family:"Space Grotesk"; font-weight:600; font-size:15px; display:flex; align-items:center; gap:9px}
+  .rec{display:flex; align-items:center; gap:7px; font-family:"Space Mono"; font-size:11px; color:var(--mic)}
+  .rec .blink{width:9px;height:9px;border-radius:50%; background:var(--mic); animation:blink 1.4s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+  .track{display:grid; grid-template-columns:150px 1fr; gap:14px; align-items:center; padding:13px; border-radius:12px; background:#0d0d10; border:1px solid #ffffff08; margin-bottom:10px; transition:.3s}
+  .track:last-child{margin-bottom:0}
+  .track-label{display:flex; align-items:center; gap:10px; min-width:0}
+  .tdot{width:10px;height:10px;border-radius:50%; flex:0 0 auto}
+  .tname{font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .tstate{font-family:"Space Mono"; font-size:10.5px; color:var(--good); margin-top:1px}
+  .wave{display:flex; align-items:center; gap:3px; height:44px}
+  .wave b{flex:1; background:currentColor; border-radius:2px; min-width:2px; height:20%; transform-origin:center; animation:eq 1.1s ease-in-out infinite}
+  @keyframes eq{0%,100%{height:16%}50%{height:var(--h,60%)}}
+  .track[data-t="game"]{color:var(--game)}
+  .track[data-t="discord"]{color:var(--discord)}
+  .track[data-t="mic"]{color:var(--mic)}
+  .cut-btn{margin-left:auto; font-family:"Space Mono"; font-size:11px; color:var(--dim); background:#ffffff10; border:1px solid var(--line2); border-radius:7px; padding:4px 9px; cursor:pointer; transition:.15s; white-space:nowrap}
+  .cut-btn:hover{color:var(--text); border-color:var(--mic)}
+  /* muted (cut) state */
+  .track.muted{opacity:.5; color:#3a3a42 !important; background:#0a0a0c}
+  .track.muted .wave b{animation:none !important; height:8% !important}
+  .track.muted .tstate{color:var(--mic)}
+  .track.muted .cut-btn{color:var(--mic); border-color:var(--mic); background:#E5534b1a}
+  .mixer-foot{margin-top:15px; padding-top:14px; border-top:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; font-size:12.5px; color:var(--dim)}
+  .mixer-foot .hint{font-family:"Space Mono"; font-size:11px}
+
+  /* ---- sections ---- */
+  section{position:relative; z-index:1}
+  .section{padding:64px 0}
+  .kicker{font-family:"Space Mono"; font-size:12.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--gold); margin-bottom:14px}
+  h2.h{font-size:clamp(28px,3.6vw,42px)}
+  .lead{color:var(--dim); font-size:17px; max-width:560px; margin-top:14px}
+
+  /* framed app screenshot */
+  .shot{border-radius:14px; border:1px solid var(--line); background:#0d0d10; overflow:hidden; box-shadow:0 40px 90px #00000077; position:relative}
+  .shot .bar{display:flex; align-items:center; gap:7px; padding:11px 14px; border-bottom:1px solid var(--line); background:#0f0f12}
+  .shot .bar i{width:11px;height:11px;border-radius:50%; background:#2c2c33}
+  .shot .bar i:nth-child(1){background:#E5534b}
+  .shot .bar i:nth-child(2){background:#E3B341}
+  .shot .bar i:nth-child(3){background:#3FB950}
+  .shot .bar span{margin-left:10px; font-family:"Space Mono"; font-size:11.5px; color:var(--faint)}
+  .shot img{display:block; width:100%; height:auto}
+
+  .showcase{padding:20px 0 0}
+  .showcase .shot{max-width:1040px; margin:0 auto}
+
+  /* feature rows */
+  .feat{display:grid; grid-template-columns:1fr 1fr; gap:52px; align-items:center}
+  .feat.flip .fcopy{order:2}
+  .feat + .feat{margin-top:70px}
+  .flist{list-style:none; padding:0; margin:24px 0 0}
+  .flist li{display:flex; gap:12px; align-items:flex-start; margin-bottom:13px; color:var(--dim); font-size:15.5px}
+  .flist svg{width:19px;height:19px; flex:0 0 auto; margin-top:2px; stroke:var(--gold)}
+  .flist b{color:var(--text); font-weight:600}
+
+  /* toast demo */
+  .toast{display:inline-flex; align-items:center; gap:12px; background:#141417; border:1px solid var(--line2); border-radius:13px; padding:12px 16px; box-shadow:0 20px 50px #00000088}
+  .toast .ic{width:30px;height:30px;border-radius:8px; background:var(--gold); display:grid; place-items:center; color:var(--gold-ink); font-weight:700}
+  .toast small{display:block; color:var(--faint); font-size:11.5px; font-family:"Space Mono"}
+  .toast .t2{font-weight:600; font-size:14px}
+
+  /* specs strip */
+  .specs{display:grid; grid-template-columns:repeat(4,1fr); gap:16px}
+  .spec{background:linear-gradient(180deg,var(--panel),var(--bg2)); border:1px solid var(--line); border-radius:var(--r); padding:22px}
+  .spec .n{font-family:"Space Grotesk"; font-weight:700; font-size:26px; color:var(--gold)}
+  .spec .l{color:var(--dim); font-size:13.5px; margin-top:6px}
+  .spec .d{color:var(--faint); font-size:12.5px; margin-top:8px; line-height:1.4}
+
+  /* download */
+  .download{position:relative; z-index:1; text-align:center; padding:90px 0}
+  .dlcard{max-width:760px; margin:0 auto; background:radial-gradient(120% 140% at 50% 0%, #1b1710 0%, var(--panel) 55%); border:1px solid var(--line2); border-radius:24px; padding:56px 40px; box-shadow:0 40px 120px #00000088}
+  .dlcard h2{font-size:clamp(30px,4vw,46px)}
+  .dlcard p{color:var(--dim); font-size:17px; margin:16px auto 30px; max-width:460px}
+  .btn-xl{font-size:17px; padding:16px 34px; border-radius:14px}
+  .req{margin-top:20px; color:var(--faint); font-size:13px; font-family:"Space Mono"}
+
+  footer{position:relative; z-index:1; border-top:1px solid var(--line); padding:34px 0; margin-top:20px}
+  .foot{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; color:var(--faint); font-size:13.5px}
+  .foot .brand{font-size:16px}
+
+  /* reveal on scroll */
+  .reveal{opacity:0; transform:translateY(22px); transition:opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1; transform:none}
+
+  @media (max-width:900px){
+    .hero-grid,.feat,.feat.flip .fcopy{grid-template-columns:1fr; order:0}
+    .feat .fmedia{order:-1}
+    .hero{padding:44px 0 20px}
+    .navlinks{display:none}
+    .specs{grid-template-columns:repeat(2,1fr)}
+    .section{padding:48px 0}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important; scroll-behavior:auto}
+    .reveal{opacity:1; transform:none; transition:none}
+  }
+</style>
+</head>
+<body>
+<div class="glowfield"><i class="g1"></i><i class="g2"></i><i class="g3"></i></div>
+
+<header>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="#top"><img src="img/clyppr-mark.png" alt="">Clyppr</a>
+      <div class="navlinks">
+        <a href="#audio">Per-app audio</a>
+        <a href="#editor">Editor</a>
+        <a href="#share">Sharing</a>
+        <a href="#specs">Why Clyppr</a>
+      </div>
+      <a class="btn btn-gold nav-dl" href="#download">Download</a>
+    </nav>
+  </div>
+</header>
+
+<a id="top"></a>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow"><span class="dot"></span> Self-hosted game clips</span>
+      <h1 class="title">Clip the game.<br><span class="line2">Cut the Discord.</span></h1>
+      <p class="sub">Clyppr records <b>every app's audio on its own track</b> — so your clips keep the game and lose the voice-chat chaos. Always-on replay buffer, a real editor, and <b>drag-to-Discord</b> sharing. Your clips never leave your PC.</p>
+      <div class="cta">
+        <a class="btn btn-gold btn-xl" href="https://github.com/izoose/clyppr/releases/latest/download/Clyppr-Setup-x64.exe">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+          Download for Windows
+        </a>
+        <a class="btn btn-ghost btn-xl" href="#audio">See how it works</a>
+      </div>
+      <div class="trust">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Windows 10 / 11</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> NVENC hardware encode</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> No account, no cloud fees</span>
+      </div>
+    </div>
+
+    <div class="hero-media">
+      <div class="mixer" id="mixer">
+        <div class="mixer-top">
+          <div class="mixer-title"><img src="img/clyppr-mark.png" alt="" style="width:20px;height:20px;border-radius:6px"> Audio tracks</div>
+          <div class="rec"><span class="blink"></span> REC · buffering</div>
+        </div>
+        <div class="track" data-t="game">
+          <div class="track-label"><span class="tdot" style="background:var(--game)"></span><div><div class="tname">Game — Roblox</div><div class="tstate">kept</div></div></div>
+          <div class="wave" data-wave></div>
+        </div>
+        <div class="track" data-t="discord" id="discordTrack">
+          <div class="track-label"><span class="tdot" style="background:var(--discord)"></span><div><div class="tname">Discord</div><div class="tstate">kept</div></div><button class="cut-btn" id="cutBtn">cut</button></div>
+          <div class="wave" data-wave></div>
+        </div>
+        <div class="track" data-t="mic">
+          <div class="track-label"><span class="tdot" style="background:var(--mic)"></span><div><div class="tname">Mic</div><div class="tstate">kept</div></div></div>
+          <div class="wave" data-wave></div>
+        </div>
+        <div class="mixer-foot">
+          <span class="hint">click <b style="color:var(--text)">cut</b> to drop Discord from the clip →</span>
+          <span>3 sources · 1 recording</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- full app showcase -->
+<section class="showcase reveal">
+  <div class="wrap">
+    <div class="shot">
+      <div class="bar"><i></i><i></i><i></i><span>Clyppr — Library</span></div>
+      <img src="img/app-home.png" alt="Clyppr library of game clips" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<!-- per-app audio -->
+<a id="audio"></a>
+<section class="section">
+  <div class="wrap">
+    <div class="feat">
+      <div class="fcopy reveal">
+        <div class="kicker">The thing Medal makes hard</div>
+        <h2 class="h">Keep the game.<br>Drop the voice chat.</h2>
+        <p class="lead">Every app you hear gets captured on a <b style="color:var(--text)">separate audio track</b> the moment it's recorded — game, Discord, mic, all split. So in the editor you just untick Discord and the clip keeps the game. No re-recording, no messy audio.</p>
+        <ul class="flist">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Automatic separation</b> — Clyppr detects each app making sound and gives it its own track. Zero setup.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Cut or boost, per source</b> — mute a track, or push it to 300% if the game was too quiet.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Hear it live</b> — change a track's volume while the clip plays and it updates in real time.</span></li>
+        </ul>
+      </div>
+      <div class="fmedia reveal">
+        <div class="shot">
+          <div class="bar"><i></i><i></i><i></i><span>Clyppr — Edit clip · Discord cut</span></div>
+          <img src="img/app-cut.png" alt="Editor with the Discord track cut from the clip" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- replay buffer -->
+<section class="section">
+  <div class="wrap">
+    <div class="feat flip">
+      <div class="fcopy reveal">
+        <div class="kicker">Always recording</div>
+        <h2 class="h">Missed the play?<br>You didn't.</h2>
+        <p class="lead">Clyppr keeps a rolling buffer of your last minutes in the background on your GPU. When something happens, hit <kbd>ALT</kbd> <kbd>C</kbd> and the clip's already saved — ending exactly on <i>now</i>.</p>
+        <div style="margin-top:26px" class="toast">
+          <div class="ic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div><div class="t2">Saved the last 1m</div><small class="mono" style="color:var(--faint)">clyppr · just now</small></div>
+        </div>
+        <ul class="flist">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>One hotkey</b> — <kbd>ALT</kbd> <kbd>C</kbd> for the last clip, screenshot hotkey too.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Auto-titled</b> by the game you're in, sorted into your library instantly.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Runs in the tray</b> — starts with Windows, sips resources while you play.</span></li>
+        </ul>
+      </div>
+      <div class="fmedia reveal">
+        <div class="shot">
+          <div class="bar"><i></i><i></i><i></i><span>Clyppr — Select &amp; manage</span></div>
+          <img src="img/app-select.png" alt="Selecting multiple clips in the library" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- editor -->
+<a id="editor"></a>
+<section class="section">
+  <div class="wrap">
+    <div class="feat">
+      <div class="fcopy reveal">
+        <div class="kicker">A real editor, not a trimmer</div>
+        <h2 class="h">Trim it. Mix it.<br>Ship it.</h2>
+        <p class="lead">Drag the handles on a proper timeline to trim, ride each source's volume on its own fader, zoom into the frame, and export — or drop it straight to a GIF.</p>
+        <ul class="flist">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Timeline trim</b> with draggable in/out handles and a live playhead.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Per-track mixer</b> — keep, cut, or boost each app, previewed live.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Zoom &amp; pan</b> the frame, then export to MP4 or GIF.</span></li>
+        </ul>
+      </div>
+      <div class="fmedia reveal">
+        <div class="shot">
+          <div class="bar"><i></i><i></i><i></i><span>Clyppr — Edit clip</span></div>
+          <img src="img/app-editor.png" alt="Clyppr editor with timeline and per-track mixer" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- sharing -->
+<a id="share"></a>
+<section class="section">
+  <div class="wrap">
+    <div class="feat flip">
+      <div class="fcopy reveal">
+        <div class="kicker">Share in a second</div>
+        <h2 class="h">Drag it straight<br>into Discord.</h2>
+        <p class="lead">Grab the clip and drag it right into any chat, copy the file to paste with <b class="mono" style="color:var(--gold)">Ctrl+V</b>, or save a copy — no upload, no account, nothing leaves your PC unless you send it.</p>
+        <ul class="flist">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Drag-to-share</b> right out of the app, SteelSeries-style.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Copy the file</b> and paste it into Discord, or save it anywhere.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b>Quick links to X, Reddit, YouTube</b> or Discord to post it yourself.</span></li>
+        </ul>
+      </div>
+      <div class="fmedia reveal">
+        <div class="shot" style="max-width:420px">
+          <div class="bar"><i></i><i></i><i></i><span>Clyppr — Share</span></div>
+          <img src="img/app-share.png" alt="Clyppr share dialog with drag-to-share and social targets" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- specs / why -->
+<a id="specs"></a>
+<section class="section">
+  <div class="wrap">
+    <div class="reveal" style="text-align:center; max-width:640px; margin:0 auto 40px">
+      <div class="kicker" style="display:inline-block">Why Clyppr</div>
+      <h2 class="h">Simple. Yours. Fast.</h2>
+      <p class="lead" style="margin:14px auto 0">Everything Medal does that matters — without the account, the upsells, or the cloud you don't control.</p>
+    </div>
+    <div class="specs reveal">
+      <div class="spec"><div class="n">100%</div><div class="l">Local &amp; private</div><div class="d">Your clips stay on your machine. No upload, no sign-in, ever.</div></div>
+      <div class="spec"><div class="n">NVENC</div><div class="l">Hardware capture</div><div class="d">Records on the GPU so your frames stay yours during the fight.</div></div>
+      <div class="spec"><div class="n">N-track</div><div class="l">Per-app audio</div><div class="d">Every source split at record time — the feature nothing else nails.</div></div>
+      <div class="spec"><div class="n">$0</div><div class="l">No subscription</div><div class="d">No cloud, no accounts, no upsells. It's just yours.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- download -->
+<a id="download"></a>
+<section class="download">
+  <div class="wrap">
+    <div class="dlcard reveal">
+      <div class="kicker" style="text-align:center">Get Clyppr</div>
+      <h2>Start clipping in a minute.</h2>
+      <p>Download, drop it on your gaming PC, press <kbd>ALT</kbd> <kbd>C</kbd>. That's the whole setup.</p>
+      <a class="btn btn-gold btn-xl" href="https://github.com/izoose/clyppr/releases/latest/download/Clyppr-Setup-x64.exe">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+        Download Clyppr for Windows
+      </a>
+      <div class="req">Windows 10 / 11 · x64 · NVIDIA GPU recommended · ~115&nbsp;MB</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <a class="brand" href="#top"><img src="img/clyppr-mark.png" alt="" style="width:22px;height:22px;border-radius:6px">Clyppr</a>
+    <span>Clip the game. Cut the Discord.</span>
+    <span class="mono">clyppr.com</span>
+  </div>
+</footer>
+
+<script>
+  // build animated equalizer bars for each track
+  const BARS = 46;
+  document.querySelectorAll('[data-wave]').forEach((w, wi) => {
+    for (let i = 0; i < BARS; i++){
+      const b = document.createElement('b');
+      const h = 30 + Math.round(Math.abs(Math.sin(i*0.5 + wi) * 55) + (i % 3) * 8); // deterministic-ish
+      b.style.setProperty('--h', Math.min(95, h) + '%');
+      b.style.animationDelay = (-(i * 0.045 + wi * 0.2)).toFixed(2) + 's';
+      b.style.animationDuration = (0.9 + (i % 5) * 0.12).toFixed(2) + 's';
+      w.appendChild(b);
+    }
+  });
+
+  // cut / keep Discord toggle (the signature interaction)
+  const dt = document.getElementById('discordTrack');
+  const cut = document.getElementById('cutBtn');
+  cut.addEventListener('click', () => {
+    const muted = dt.classList.toggle('muted');
+    cut.textContent = muted ? 'cut ✕' : 'cut';
+    dt.querySelector('.tstate').textContent = muted ? 'cut from clip' : 'kept';
+  });
+
+  // reveal on scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>

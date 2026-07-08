@@ -40,6 +40,7 @@ public sealed class AudioCapture : IDisposable
 
     private readonly CaptureKind _kind;
     private readonly uint _pid;
+    private readonly string? _deviceId;   // specific mic endpoint; null = system default
     private IAudioClient _client = null!;
     private IAudioCaptureClient _capture = null!;
     private IntPtr _hEvent;
@@ -49,10 +50,11 @@ public sealed class AudioCapture : IDisposable
     private readonly ManualResetEventSlim _initDone = new(false);
     private Exception? _initError;
 
-    public AudioCapture(CaptureKind kind, uint pid = 0)
+    public AudioCapture(CaptureKind kind, uint pid = 0, string? deviceId = null)
     {
         _kind = kind;
         _pid = pid;
+        _deviceId = deviceId;
     }
 
     public void Start()
@@ -157,8 +159,16 @@ public sealed class AudioCapture : IDisposable
     private IAudioClient ActivateDefaultEndpoint()
     {
         var enumr = (IMMDeviceEnumerator)Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_MMDeviceEnumerator)!)!;
-        int flow = _kind == CaptureKind.Mic ? EDataFlow_eCapture : EDataFlow_eRender;
-        Marshal.ThrowExceptionForHR(enumr.GetDefaultAudioEndpoint(flow, ERole_eConsole, out IMMDevice dev));
+        IMMDevice dev;
+        if (_kind == CaptureKind.Mic && !string.IsNullOrEmpty(_deviceId) && enumr.GetDevice(_deviceId, out dev) == 0)
+        {
+            // use the specific mic the user picked
+        }
+        else
+        {
+            int flow = _kind == CaptureKind.Mic ? EDataFlow_eCapture : EDataFlow_eRender;
+            Marshal.ThrowExceptionForHR(enumr.GetDefaultAudioEndpoint(flow, ERole_eConsole, out dev));
+        }
         Marshal.ThrowExceptionForHR(dev.Activate(IID_IAudioClient, CLSCTX_ALL, IntPtr.Zero, out object clientObj));
         return (IAudioClient)clientObj;
     }

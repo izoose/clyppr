@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using Clipper.Core;
@@ -7,6 +8,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Clipper.App;
+
+/// <summary>A detected player and the timestamp (seconds) where they first appear in the clip.</summary>
+public sealed record PlayerHit(string Name, double Time);
 
 /// <summary>Medal-style clip viewer: video + prev/next + editable details (title, favorite,
 /// album, hashtags), Open in Editor / Share / Delete.</summary>
@@ -20,6 +24,16 @@ public partial class ClipViewerViewModel : ObservableObject
 
     [ObservableProperty] private int _index;
     [ObservableProperty] private string _title = "";
+    [ObservableProperty] private string _playerStatus = "";
+
+    /// <summary>Roblox usernames detected in the clip (OCR of overhead nametags), with the time seen.</summary>
+    public ObservableCollection<PlayerHit> Players { get; } = new();
+
+    /// <summary>Raised when a detected player is clicked — the view seeks the video there.</summary>
+    public event Action<double>? SeekRequested;
+
+    [RelayCommand]
+    private void SeekToPlayer(PlayerHit? p) { if (p is not null) SeekRequested?.Invoke(p.Time); }
 
     /// <summary>Raised when the view should reload the MediaElement (clip changed).</summary>
     public event Action? SourceChanged;
@@ -50,6 +64,48 @@ public partial class ClipViewerViewModel : ObservableObject
         Title = Current?.Title ?? "";
         NotifyAll();
         SourceChanged?.Invoke();
+        ScanPlayers();
+    }
+
+    /// <summary>Populate the Players list — from cache if already scanned, else OCR the clip in the
+    /// background. Only Roblox clips are scanned (that's where @username nametags appear).</summary>
+    public async void ScanPlayers()
+    {
+        Players.Clear();
+        PlayerStatus = "";
+        var clip = Current;
+        if (clip is null) return;
+
+        bool isRoblox = (clip.Game ?? "").Contains("roblox", StringComparison.OrdinalIgnoreCase);
+        if (!isRoblox && clip.Players is null) return;   // don't OCR non-Roblox clips
+
+        if (clip.Players is not null) { LoadPlayersFrom(clip.Players); return; }   // cached
+
+        PlayerStatus = "Scanning for players…";
+        var target = clip;
+        List<(string Name, double Time)> hits;
+        try { hits = await PlayerScanner.ScanAsync(target.FilePath); }
+        catch { hits = new(); }
+
+        target.Players = string.Join(",", hits.Select(h => $"{h.Name}:{h.Time.ToString(CultureInfo.InvariantCulture)}"));
+        try { _library.SetPlayers(target.Id, target.Players); } catch { }
+
+        if (!ReferenceEquals(Current, target)) return;   // navigated away mid-scan
+        LoadPlayersFrom(target.Players);
+    }
+
+    private void LoadPlayersFrom(string csv)
+    {
+        Players.Clear();
+        foreach (var part in csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            int idx = part.LastIndexOf(':');
+            string name = idx > 0 ? part[..idx] : part;
+            double time = 0;
+            if (idx > 0) double.TryParse(part[(idx + 1)..], NumberStyles.Any, CultureInfo.InvariantCulture, out time);
+            Players.Add(new PlayerHit(name, time));
+        }
+        PlayerStatus = Players.Count == 0 ? "No players detected" : "";
     }
 
     partial void OnTitleChanged(string value)

@@ -1,12 +1,24 @@
+# build output
 bin/
 obj/
 *.user
 **/out/
+publish/
+build/
+dist/
+
+# clips / audio scratch — never commit media
 *.mp4
 *.wav
+
+# images: ignore stray/generated PNGs, but KEEP app + website assets
 *.png
 !**/Assets/**/*.png
+!site/**/*.png
+
+# stray design scratch images at repo root (e.g. "ChatGPT Image ....png")
+/*.png
+
 node_modules/
 server/data/
 .env
-publish/

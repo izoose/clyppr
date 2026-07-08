@@ -16,6 +16,19 @@ public partial class TrackRowViewModel : ObservableObject
 
     public string VolumeText => $"{Volume * 100:0}%";
     partial void OnVolumeChanged(double value) => OnPropertyChanged(nameof(VolumeText));
+
+    // A Segoe MDL2 glyph that matches the source, so the mixer reads at a glance.
+    public string Icon
+    {
+        get
+        {
+            var n = Name.ToLowerInvariant();
+            if (n.Contains("mic")) return ((char)0xE720).ToString();                                       // microphone
+            if (n.Contains("discord") || n.Contains("voice") || n.Contains("chat")) return ((char)0xE716).ToString(); // people / voice chat
+            if (n.Contains("system") || n.Contains("desktop") || n.Contains("speaker")) return ((char)0xE767).ToString(); // speaker
+            return ((char)0xE7FC).ToString();                                                              // game controller
+        }
+    }
 }
 
 public partial class EditorViewModel : ObservableObject
@@ -67,17 +80,23 @@ public partial class EditorViewModel : ObservableObject
     public void SetOut(double pos) => OutSeconds = Math.Clamp(pos, InSeconds + 0.1, DurationSeconds);
 
     [RelayCommand]
-    private async Task Export()
+    private Task Export() => RunExport(vertical: false);
+
+    [RelayCommand]
+    private Task ExportVertical() => RunExport(vertical: true);
+
+    private async Task RunExport(bool vertical)
     {
         if (Exporting) return;
         Exporting = true;
-        Status = "Exporting…";
+        Status = vertical ? "Exporting vertical…" : "Exporting…";
 
         string dir = _settings.ClipsDirectory;
-        string outPath = Path.Combine(dir, Path.GetFileNameWithoutExtension(_clip.FilePath) + "_edit.mp4");
+        string suffix = vertical ? "_vertical" : "_edit";
+        string outPath = Path.Combine(dir, Path.GetFileNameWithoutExtension(_clip.FilePath) + suffix + ".mp4");
         int n = 1;
         while (File.Exists(outPath))
-            outPath = Path.Combine(dir, Path.GetFileNameWithoutExtension(_clip.FilePath) + $"_edit{n++}.mp4");
+            outPath = Path.Combine(dir, Path.GetFileNameWithoutExtension(_clip.FilePath) + $"{suffix}{n++}.mp4");
 
         var choices = Tracks.Select(t => new ClipExporter.TrackChoice(t.Index, t.Keep, t.Volume)).ToList();
         string keptNames = string.Join(",", Tracks.Where(t => t.Keep).Select(t => t.Name));
@@ -87,7 +106,7 @@ public partial class EditorViewModel : ObservableObject
             await Task.Run(() => ClipExporter.Export(
                 _clip.FilePath, outPath,
                 TimeSpan.FromSeconds(InSeconds), TimeSpan.FromSeconds(OutSeconds),
-                choices, cq: _settings.Cq));
+                choices, cq: _settings.Cq, vertical: vertical));
             var clip = ClipImporter.Import(outPath, _library, tracks: keptNames, game: _clip.Game);
             _onExported(clip);
             Status = "Exported ✓";

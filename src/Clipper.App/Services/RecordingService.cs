@@ -25,6 +25,11 @@ public sealed class RecordingService : IDisposable
     private DateTime _lastRestart = DateTime.MinValue;
     private readonly object _sync = new();
 
+    // Roblox experience name, kept warm from the Roblox logs so clip titles can use it.
+    private System.Threading.Timer? _expTimer;
+    private long _robloxUniverse;
+    private volatile string? _robloxExperience;
+
     /// <summary>Raised (on a background thread) after a clip is saved and added to the library.</summary>
     public event Action<Clip>? ClipSaved;
     /// <summary>Raised when buffer/recording state changes so the UI can refresh.</summary>
@@ -44,6 +49,33 @@ public sealed class RecordingService : IDisposable
     {
         _settings = settings;
         _library = library;
+        _expTimer = new System.Threading.Timer(_ => PollExperience(), null, 3000, 5000);
+    }
+
+    // Reads the newest Roblox log for the current experience and resolves its name (cached),
+    // so SaveClip can title a clip "Emergency Response: Liberty County — Jul 8" without blocking.
+    private async void PollExperience()
+    {
+        try
+        {
+            var uid = RobloxExperience.CurrentUniverseId();
+            if (uid is not long u) return;
+            if (u == _robloxUniverse && _robloxExperience is not null) return;
+            _robloxUniverse = u;
+            var name = await RobloxExperience.ResolveNameAsync(u);
+            if (!string.IsNullOrWhiteSpace(name)) _robloxExperience = name;
+        }
+        catch { }
+    }
+
+    /// <summary>A nice title for a just-saved clip — the real Roblox experience name when known.</summary>
+    private string? TitleFor(string? game)
+    {
+        if (game is null) return null;
+        string label = game.Equals("Roblox", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(_robloxExperience)
+            ? _robloxExperience!
+            : game;
+        return $"{label} — {DateTime.Now:MMM d}";
     }
 
     private RecorderConfig BuildConfig() => new()
@@ -70,20 +102,34 @@ public sealed class RecordingService : IDisposable
         if (apps.Count > 6) apps = apps.GetRange(0, 6);
 
         var tracks = new List<AudioTrackConfig>();
-        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var usedPids = new HashSet<uint>();
+
+        // ALWAYS capture the foreground game on its own track — its audio session often isn't
+        // flagged "active" the instant we scan, so Roblox/etc. were being missed entirely.
+        var game = AppDetector.ForegroundGameProcess();
+        if (game is { } g && g.Pid != self)
+        {
+            tracks.Add(new AudioTrackConfig { Name = g.Name, Kind = CaptureKind.ProcessInclude, Pid = g.Pid });
+            usedNames.Add(g.Name);
+            usedPids.Add(g.Pid);
+        }
+
         foreach (var (pid, proc) in apps)
         {
-            string baseName = AppDetector.Friendly(proc);
-            string name = baseName;
-            int n = 2;
-            while (!used.Add(name)) name = $"{baseName} {n++}";
+            if (usedPids.Contains(pid)) continue;
+            string name = AppDetector.Friendly(proc);
+            if (!usedNames.Add(name)) continue;   // one track per app (no "Discord 2" duplicates)
             tracks.Add(new AudioTrackConfig { Name = name, Kind = CaptureKind.ProcessInclude, Pid = pid });
+            usedPids.Add(pid);
         }
+
         if (tracks.Count == 0)
             tracks.Add(new AudioTrackConfig { Name = "Desktop", Kind = CaptureKind.SystemAudio });
-        tracks.Add(new AudioTrackConfig { Name = "Mic", Kind = CaptureKind.Mic });
+        if (_settings.MicEnabled)
+            tracks.Add(new AudioTrackConfig { Name = "Mic", Kind = CaptureKind.Mic, DeviceId = _settings.MicDeviceId });
 
-        _capturedPids = apps.Select(a => a.Pid).ToHashSet();
+        _capturedPids = usedPids;
         return tracks;
     }
 
@@ -129,7 +175,10 @@ public sealed class RecordingService : IDisposable
             if (_buffer is null || !_buffer.IsRunning) return;
             if ((DateTime.Now - _lastRestart).TotalSeconds < 12) return;
             var apps = AudioSessions.ActiveApps((uint)Environment.ProcessId);
-            if (!apps.Any(a => !_capturedPids.Contains(a.Pid))) return;
+            bool newApp = apps.Any(a => !_capturedPids.Contains(a.Pid));
+            var game = AppDetector.ForegroundGameProcess();
+            bool newGame = game is { } g && !_capturedPids.Contains(g.Pid);
+            if (!newApp && !newGame) return;   // rebuild if a new app OR the game isn't captured yet
             try
             {
                 _buffer.Stop();
@@ -163,7 +212,7 @@ public sealed class RecordingService : IDisposable
         if (saved is null) return null;
 
         var clip = ClipImporter.Import(saved, _library,
-            title: game is null ? null : $"{game} — {DateTime.Now:MMM d}",
+            title: TitleFor(game),
             tracks: string.Join(",", names), game: game);
         ClipSaved?.Invoke(clip);
         Notification?.Invoke($"Saved the last {ClipLengthLabel}");
@@ -205,7 +254,7 @@ public sealed class RecordingService : IDisposable
             if (File.Exists(file))
             {
                 clip = ClipImporter.Import(file, _library,
-                    title: _manualGame is null ? null : $"{_manualGame} — {DateTime.Now:MMM d}",
+                    title: TitleFor(_manualGame),
                     tracks: string.Join(",", names), game: _manualGame);
                 ClipSaved?.Invoke(clip);
                 Notification?.Invoke("Recording saved");
@@ -264,7 +313,7 @@ public sealed class RecordingService : IDisposable
             var clip = new Clip
             {
                 FilePath = path,
-                Title = (game ?? "Screenshot") + $" — {DateTime.Now:MMM d}",
+                Title = TitleFor(game) ?? $"Screenshot — {DateTime.Now:MMM d}",
                 Game = game,
                 CreatedAt = DateTime.Now,
                 DurationMs = 0,
@@ -321,6 +370,7 @@ public sealed class RecordingService : IDisposable
     public void Dispose()
     {
         _monitor?.Dispose();
+        _expTimer?.Dispose();
         _hotkey?.Dispose();
         _shotHotkey?.Dispose();
         _buffer?.Dispose();

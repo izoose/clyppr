@@ -60,19 +60,45 @@
                         </MediaElement>
                     </Border>
 
-                    <!-- Transport -->
-                    <Grid Grid.Row="1" Margin="0,12,0,0">
+                    <!-- Timeline: scrub + trim in one bar (drag the gold handles to trim) -->
+                    <StackPanel Grid.Row="1" Margin="0,14,0,0">
+                        <Grid Margin="3,0,3,7">
+                            <TextBlock Text="{Binding InText}" Foreground="{StaticResource TextDim}" FontSize="11.5" HorizontalAlignment="Left"/>
+                            <TextBlock Text="{Binding SelectionText}" Foreground="{StaticResource Accent}" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding OutText}" Foreground="{StaticResource TextDim}" FontSize="11.5" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Border Background="{StaticResource Card}" CornerRadius="10" Padding="16,13">
+                            <Canvas x:Name="Timeline" Height="40" Background="Transparent" ClipToBounds="False"
+                                    SizeChanged="Timeline_SizeChanged"
+                                    MouseLeftButtonDown="Timeline_Down" MouseMove="Timeline_Move" MouseLeftButtonUp="Timeline_Up">
+                                <Border x:Name="TrackBg" Height="6" CornerRadius="3" Background="#2B2B33" Canvas.Top="17" IsHitTestVisible="False"/>
+                                <Border x:Name="SelRegion" Height="6" CornerRadius="3" Background="#59FFC93C" Canvas.Top="17" IsHitTestVisible="False"/>
+                                <Border x:Name="PlayedRegion" Height="6" CornerRadius="3" Background="{StaticResource Accent}" Canvas.Top="17" IsHitTestVisible="False"/>
+                                <Border x:Name="InHandle" Width="12" Height="30" CornerRadius="4" Background="{StaticResource Accent}" Canvas.Top="5" Cursor="SizeWE">
+                                    <Border.Effect><DropShadowEffect BlurRadius="7" ShadowDepth="0" Opacity="0.5" Color="#000000"/></Border.Effect>
+                                </Border>
+                                <Border x:Name="OutHandle" Width="12" Height="30" CornerRadius="4" Background="{StaticResource Accent}" Canvas.Top="5" Cursor="SizeWE">
+                                    <Border.Effect><DropShadowEffect BlurRadius="7" ShadowDepth="0" Opacity="0.5" Color="#000000"/></Border.Effect>
+                                </Border>
+                                <Border x:Name="Playhead" Width="3" Height="40" CornerRadius="1.5" Background="White" Canvas.Top="0" IsHitTestVisible="False">
+                                    <Border.Effect><DropShadowEffect BlurRadius="4" ShadowDepth="0" Opacity="0.6" Color="#000000"/></Border.Effect>
+                                </Border>
+                            </Canvas>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Controls -->
+                    <Grid Grid.Row="2" Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="PlayBtn" Grid.Column="0" Style="{StaticResource CardButton}" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" Click="PlayPause_Click" Width="40"/>
-                        <Button Grid.Column="1" Style="{StaticResource CardButton}" Content="&#xE74F;" Margin="6,0,0,0" FontFamily="Segoe MDL2 Assets" Click="Mute_Click" ToolTip="Preview audio" x:Name="MuteBtn"/>
-                        <Slider x:Name="PosSlider" Grid.Column="2" Margin="12,0" VerticalAlignment="Center" Minimum="0" ValueChanged="PosSlider_ValueChanged"/>
-                        <TextBlock x:Name="TimeText" Grid.Column="3" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" FontSize="12" Text="0:00 / 0:00" Margin="0,0,10,0"/>
+                        <Button x:Name="MuteBtn" Grid.Column="1" Style="{StaticResource CardButton}" Content="&#xE767;" Margin="6,0,0,0" FontFamily="Segoe MDL2 Assets" Click="Mute_Click" ToolTip="Mute preview"/>
+                        <TextBlock x:Name="TimeText" Grid.Column="2" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" FontSize="12.5" Text="0:00 / 0:00" Margin="12,0,0,0"/>
                         <StackPanel Grid.Column="4" Orientation="Horizontal">
                             <Button Style="{StaticResource CardButton}" Content="&#xE71F;" FontFamily="Segoe MDL2 Assets" ToolTip="Zoom out" Click="ZoomOut_Click"/>
                             <TextBlock x:Name="ZoomText" Text="100%" Foreground="{StaticResource TextDim}" VerticalAlignment="Center" FontSize="12" Margin="8,0" MinWidth="34" TextAlignment="Center"/>
@@ -80,26 +106,6 @@
                             <Button Style="{StaticResource CardButton}" Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="6,0,0,0" ToolTip="Reset zoom" Click="ZoomReset_Click"/>
                         </StackPanel>
                     </Grid>
-
-                    <!-- Trim -->
-                    <Border Grid.Row="2" Background="{StaticResource Card}" CornerRadius="10" Margin="0,12,0,0" Padding="12,10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <Button Style="{StaticResource CardButton}" Content="Set Start" Click="SetIn_Click"/>
-                                <TextBlock Text="{Binding InText}" Foreground="{StaticResource Text}" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="13"/>
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="{Binding SelectionText}" Foreground="{StaticResource Accent}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
-                            <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                <TextBlock Text="{Binding OutText}" Foreground="{StaticResource Text}" VerticalAlignment="Center" Margin="0,0,10,0" FontSize="13"/>
-                                <Button Style="{StaticResource CardButton}" Content="Set End" Click="SetOut_Click"/>
-                            </StackPanel>
-                        </Grid>
-                    </Border>
                 </Grid>
 
                 <!-- Audio tracks + export -->
@@ -116,26 +122,82 @@
                             <TextBlock Text="Uncheck to cut a source. Push volume past 100% to boost." Foreground="{StaticResource TextFaint}" FontSize="11" Margin="0,3,0,10" TextWrapping="Wrap"/>
                         </StackPanel>
 
-                        <ItemsControl Grid.Row="1" ItemsSource="{Binding Tracks}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="{StaticResource Card}" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
-                                        <StackPanel>
-                                            <DockPanel>
-                                                <CheckBox IsChecked="{Binding Keep}" Foreground="{StaticResource Text}" Content="{Binding Name}" FontSize="13" VerticalContentAlignment="Center"/>
-                                                <TextBlock Text="{Binding VolumeText}" Foreground="{StaticResource TextDim}" HorizontalAlignment="Right" FontSize="12" VerticalAlignment="Center"/>
-                                            </DockPanel>
-                                            <Slider Minimum="0" Maximum="3" Value="{Binding Volume}" Margin="0,6,0,0" IsEnabled="{Binding Keep}"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,-6,0" Padding="0,0,6,0">
+                            <ItemsControl ItemsSource="{Binding Tracks}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="10" Padding="12,11" Margin="0,0,0,9">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{StaticResource Card}"/>
+                                                    <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Keep}" Value="False">
+                                                            <Setter Property="Opacity" Value="0.55"/>
+                                                            <Setter Property="Background" Value="#141417"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Grid.Column="0" Width="32" Height="32" CornerRadius="9" Background="#232329" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets" FontSize="15" Foreground="{StaticResource TextDim}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Margin="11,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource Text}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Margin="0,2,0,0" FontSize="10.5">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="Included"/>
+                                                                    <Setter Property="Foreground" Value="{StaticResource Good}"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Keep}" Value="False">
+                                                                            <Setter Property="Text" Value="Cut from clip"/>
+                                                                            <Setter Property="Foreground" Value="{StaticResource Rec}"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                    <CheckBox Grid.Column="2" IsChecked="{Binding Keep}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <Grid Margin="0,11,0,1">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Slider Grid.Column="0" Minimum="0" Maximum="3" Value="{Binding Volume}" IsEnabled="{Binding Keep}" VerticalAlignment="Center"/>
+                                                    <Border Grid.Column="1" Background="#232329" CornerRadius="6" Padding="8,3" Margin="12,0,0,0" MinWidth="50" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding VolumeText}" Foreground="{StaticResource TextDim}" FontSize="11.5" TextAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
 
                         <StackPanel Grid.Row="2">
                             <TextBlock Text="{Binding Status}" Foreground="{StaticResource TextDim}" FontSize="12" Margin="0,0,0,8" TextWrapping="Wrap"/>
                             <Button Style="{StaticResource AccentButton}" Content="Export clip" HorizontalAlignment="Stretch" Padding="12,10"
                                     Command="{Binding ExportCommand}" IsEnabled="{Binding Exporting, Converter={x:Static local:InverseBoolConverter.Instance}}"/>
+                            <Button Style="{StaticResource CardButton}" HorizontalAlignment="Stretch" Margin="0,8,0,0" Padding="12,9"
+                                    Command="{Binding ExportVerticalCommand}" IsEnabled="{Binding Exporting, Converter={x:Static local:InverseBoolConverter.Instance}}"
+                                    ToolTip="Center-crop to 9:16 for TikTok / Shorts / Reels">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock Text="&#xE9A6;" FontFamily="Segoe MDL2 Assets" FontSize="13" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Export vertical (9:16)" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <Button Style="{StaticResource CardButton}" Content="Export as GIF" HorizontalAlignment="Stretch" Margin="0,8,0,0" Padding="12,9"
                                     Command="{Binding ExportGifCommand}" IsEnabled="{Binding Exporting, Converter={x:Static local:InverseBoolConverter.Instance}}"/>
                         </StackPanel>

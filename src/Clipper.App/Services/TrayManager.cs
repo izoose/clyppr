@@ -4,7 +4,7 @@ using System.Windows.Forms;
 
 namespace Clipper.App;
 
-/// <summary>System-tray icon so Clipper keeps buffering in the background like Medal.</summary>
+/// <summary>System-tray icon so Clyppr keeps buffering in the background like Medal.</summary>
 public sealed class TrayManager : IDisposable
 {
     private readonly NotifyIcon _icon;
@@ -15,7 +15,7 @@ public sealed class TrayManager : IDisposable
     {
         _app = app;
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Open Clipper", null, (_, _) => _app.ShowMainWindow());
+        menu.Items.Add("Open Clyppr", null, (_, _) => _app.ShowMainWindow());
         menu.Items.Add("Save clip now", null, (_, _) => _app.Recording.SaveClip());
         _bufferItem = new ToolStripMenuItem("Buffer", null, (_, _) => ToggleBuffer());
         menu.Items.Add(_bufferItem);
@@ -26,7 +26,7 @@ public sealed class TrayManager : IDisposable
         _icon = new NotifyIcon
         {
             Icon = LoadIcon(),
-            Text = "Clipper",
+            Text = "Clyppr",
             Visible = true,
             ContextMenuStrip = menu,
         };

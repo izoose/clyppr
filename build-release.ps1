@@ -10,5 +10,6 @@ dotnet publish (Join-Path $PSScriptRoot "src/Clipper.App/Clipper.App.csproj") `
     -o $out
 
 Write-Host ""
-Write-Host "Published to $out"
-Write-Host "Copy ffmpeg.exe and ffprobe.exe next to Clipper.App.exe (or keep them on PATH)."
+Write-Host "Published to $out\Clyppr.exe"
+Write-Host "Copy ffmpeg.exe and ffprobe.exe next to Clyppr.exe (or keep them on PATH)."
+Write-Host "For the full installer instead, run: scripts\package.ps1"

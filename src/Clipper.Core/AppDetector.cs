@@ -36,6 +36,23 @@ public static class AppDetector
         return char.ToUpperInvariant(processName[0]) + processName[1..];
     }
 
+    /// <summary>The foreground game's process id + friendly name, or null if it's the shell/us.
+    /// Used to always capture the game's audio even when its session isn't "active" yet.</summary>
+    public static (uint Pid, string Name)? ForegroundGameProcess()
+    {
+        IntPtr h = GetForegroundWindow();
+        if (h == IntPtr.Zero) return null;
+        GetWindowThreadProcessId(h, out uint pid);
+        if (pid == 0) return null;
+        try
+        {
+            using var proc = Process.GetProcessById((int)pid);
+            if (Ignore.Contains(proc.ProcessName)) return null;
+            return (pid, Friendly(proc.ProcessName));
+        }
+        catch { return null; }
+    }
+
     /// <summary>A friendly name for the current foreground game/app, or null if it's the shell/us.</summary>
     public static string? ForegroundGame()
     {

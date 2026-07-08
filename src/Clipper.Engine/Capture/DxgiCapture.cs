@@ -14,6 +14,7 @@ sealed class DxgiCapture : ICapture
 {
     public int Width { get; private set; }
     public int Height { get; private set; }
+    public CaptureFormat Format => CaptureFormat.Bgra;
     public event Action<byte[]>? FrameBgra;
 
     private ID3D11Device _device = null!;
